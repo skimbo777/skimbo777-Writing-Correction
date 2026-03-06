@@ -20,12 +20,13 @@ st.set_page_config(page_title="서울광염교회 글쓰기 교정", page_icon="
 def inject_custom_css():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500&display=swap');
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/variable/pretendardvariable.css');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap');
         
         /* Global Background and Font */
         .stApp {
             background-color: #FAF9F6;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
             color: #333333;
         }
         
@@ -129,7 +130,7 @@ def inject_custom_css():
             font-weight: 400;
         }
         .custom-desc {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Pretendard Variable', Pretendard, sans-serif;
             font-size: 1.05rem;
             color: #666666; /* K60 color matching logo */
             max-width: 700px;
@@ -140,8 +141,9 @@ def inject_custom_css():
         /* Streamlit specific label overrides */
         .stTextArea label p {
             color: #666666 !important; /* K60 color */
-            font-family: 'Inter', sans-serif !important;
+            font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
             font-size: 1.05rem !important;
+            display: none; /* Hide label as per request, use placeholder instead */
         }
         
         /* Custom Diamond Logo styles */
@@ -225,7 +227,7 @@ render_custom_header()
 
 # Sidebar for Gemini API Key
 with st.sidebar:
-    st.markdown("### ⚙️ 설정")
+    st.markdown("### ⚙️ Settings")
     
     saved_key = cookie_manager.get("gemini_api_key") or ""
     
@@ -237,7 +239,7 @@ with st.sidebar:
     if is_valid_key:
         st.markdown("""
             <div style="background-color: #eef7f0; padding: 20px; border-radius: 10px; border: 1px solid #d4ebd9; text-align: center; margin-bottom: 20px;">
-                <h3 style="color: #4a8b5b; margin-top: 0; margin-bottom: 0; font-family: 'Inter', sans-serif; font-size: 1.25rem;">API키 인증: Complete</h3>
+                <h3 style="color: #4a8b5b; margin-top: 0; margin-bottom: 0; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 1.25rem;">API키 인증: Complete</h3>
             </div>
         """, unsafe_allow_html=True)
             
@@ -265,35 +267,66 @@ with st.sidebar:
         """, height=0)
         
         st.markdown("---")
-        st.markdown("### ⚙️ 설정 메뉴")
+        st.markdown("<h3 style='margin-bottom: 15px; color: #A89574;'>Menu</h3>", unsafe_allow_html=True)
         st.markdown("""
         <style>
         .custom-sidebar-link {
-            display: block;
-            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
             color: #A89574 !important; /* Logo matching beige color */
             text-decoration: none;
             font-weight: 500;
-            border-radius: 5px;
+            border-radius: 8px;
             margin-bottom: 5px;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
+            font-family: 'Pretendard Variable', Pretendard, sans-serif;
+            font-size: 0.95rem;
         }
         .custom-sidebar-link:hover {
-            background-color: #f0f0f0;
+            background-color: rgba(168, 149, 116, 0.1);
             text-decoration: none;
         }
         .custom-sidebar-icon {
-            margin-right: 10px;
-            font-size: 1.2em;
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .custom-sidebar-icon svg {
+            width: 100%;
+            height: 100%;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
         }
         </style>
         
-        <a href="#" class="custom-sidebar-link"><span class="custom-sidebar-icon">📤</span>Share</a>
-        <a href="#" class="custom-sidebar-link"><span class="custom-sidebar-icon">⭐</span>Star</a>
-        <a href="#" class="custom-sidebar-link"><span class="custom-sidebar-icon">✏️</span>Edit</a>
-        <a href="#" class="custom-sidebar-link"><span class="custom-sidebar-icon">🐙</span>GitHub</a>
-        <div style="margin-top: 20px;"></div>
-        <a href="#" class="custom-sidebar-link" style="border-top: 1px solid #ddd; padding-top: 15px;"><span class="custom-sidebar-icon">⚙️</span>Manage app</a>
+        <a href="#" class="custom-sidebar-link">
+            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
+            Share
+        </a>
+        <a href="#" class="custom-sidebar-link">
+            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+            Star
+        </a>
+        <a href="#" class="custom-sidebar-link">
+            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+            Edit
+        </a>
+        <a href="#" class="custom-sidebar-link">
+            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></span>
+            GitHub
+        </a>
+        <div style="margin-top: 15px;"></div>
+        <a href="#" class="custom-sidebar-link" style="border-top: 1px solid rgba(168, 149, 116, 0.2); padding-top: 18px; border-radius: 0;">
+            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+            Manage app
+        </a>
         """, unsafe_allow_html=True)
         
     else:
@@ -343,7 +376,7 @@ if "final_text" not in st.session_state:
     st.session_state.final_text = ""
 
 # Main Text Input
-user_text = st.text_area("교정할 글을 입력해주세요:", height=300)
+user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요...", label_visibility="collapsed")
 
 SYSTEM_PROMPT = """
 당신은 완벽한 전문 교정가입니다.
