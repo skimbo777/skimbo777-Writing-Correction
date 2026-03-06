@@ -35,10 +35,14 @@ def inject_custom_css():
             color: #1a1a1a;
         }
         
-        /* Hide Default Streamlit Elements */
+        /* Hide Default Streamlit Elements (Toolbar, Footer, Deploy button) */
         #MainMenu {visibility: hidden;}
-        header {background-color: transparent !important;}
-        footer {visibility: hidden;}
+        header {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+        [data-testid="stToolbar"] {visibility: hidden !important;}
+        [data-testid="stAppDeployButton"] {display: none !important;}
+        .stDeployButton {display: none !important;}
+        [data-testid="stHeader"] {display: none !important;}
         
         /* Background Blobs Setup */
         .blob-bg {
@@ -139,9 +143,6 @@ def inject_custom_css():
             font-family: 'Inter', sans-serif !important;
             font-size: 1.05rem !important;
         }
-        
-        /* Show Streamlit Top Header for mobile sidebar menu */
-        [data-testid="stHeader"] {background-color: transparent;}
         
         /* Custom Diamond Logo styles */
         .logo-container {
@@ -257,12 +258,44 @@ with st.sidebar:
                             window.localStorage.setItem('gemini_api_key_local', currentKey);
                         } else {
                             // If they say no, make sure we don't ask again for this specific key during this session
-                            window.localStorage.setItem('gemini_api_key_declined', currentKey);
                         }
                     }, 500);
                 }
             </script>
         """, height=0)
+        
+        st.markdown("---")
+        st.markdown("### ⚙️ 설정 메뉴")
+        st.markdown("""
+        <style>
+        .custom-sidebar-link {
+            display: block;
+            padding: 10px 15px;
+            color: #A89574 !important; /* Logo matching beige color */
+            text-decoration: none;
+            font-weight: 500;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            transition: background-color 0.2s;
+        }
+        .custom-sidebar-link:hover {
+            background-color: #f0f0f0;
+            text-decoration: none;
+        }
+        .custom-sidebar-icon {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        </style>
+        
+        <a href="#" class="custom-sidebar-link"><span class="custom-sidebar-icon">📤</span>Share</a>
+        <a href="#" class="custom-sidebar-link"><span class="custom-sidebar-icon">⭐</span>Star</a>
+        <a href="#" class="custom-sidebar-link"><span class="custom-sidebar-icon">✏️</span>Edit</a>
+        <a href="#" class="custom-sidebar-link"><span class="custom-sidebar-icon">🐙</span>GitHub</a>
+        <div style="margin-top: 20px;"></div>
+        <a href="#" class="custom-sidebar-link" style="border-top: 1px solid #ddd; padding-top: 15px;"><span class="custom-sidebar-icon">⚙️</span>Manage app</a>
+        """, unsafe_allow_html=True)
+        
     else:
         st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 여기서 무료 키를 발급받으세요 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
         api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...", key="api_key_widget")
