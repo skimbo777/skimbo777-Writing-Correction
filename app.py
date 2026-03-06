@@ -205,9 +205,14 @@ with st.sidebar:
         st.session_state.gemini_api_key = saved_key
         
     api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...")
-    if api_key_input and api_key_input != saved_key:
+    if api_key_input != saved_key:
         st.session_state.gemini_api_key = api_key_input
         cookie_manager.set("gemini_api_key", api_key_input)
+        
+    if api_key_input and api_key_input.startswith("AIza"):
+        st.markdown("**:green[✅ API 키가 인증되었습니다. 이제 글을 교정할 수 있습니다.]**")
+    else:
+        st.markdown("**:red[❌ API 키를 확인해주세요.]**")
 
 # Session state initialization
 if "suggestions" not in st.session_state:
