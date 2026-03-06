@@ -197,22 +197,45 @@ render_custom_header()
 # Sidebar for Gemini API Key
 with st.sidebar:
     st.markdown("### ⚙️ 설정")
-    st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 여기서 무료 키를 발급받으세요 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
     
     saved_key = cookie_manager.get("gemini_api_key") or ""
     
     if "gemini_api_key" not in st.session_state:
         st.session_state.gemini_api_key = saved_key
         
-    api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...")
-    if api_key_input != saved_key:
-        st.session_state.gemini_api_key = api_key_input
-        cookie_manager.set("gemini_api_key", api_key_input)
+    is_valid_key = st.session_state.gemini_api_key and st.session_state.gemini_api_key.startswith("AIza")
+    
+    if is_valid_key:
+        st.markdown("""
+            <div style="background-color: #eef7f0; padding: 20px; border-radius: 10px; border: 1px solid #d4ebd9; text-align: center; margin-bottom: 20px;">
+                <h3 style="color: #4a8b5b; margin-top: 0; font-family: 'Inter', sans-serif;">System Ready ✨</h3>
+                <p style="color: #5c996b; font-size: 0.9em; margin-bottom: 0;">✅ API 키가 인증되었습니다.<br>이제 글을 교정할 수 있습니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-    if api_key_input and api_key_input.startswith("AIza"):
-        st.markdown("**:green[✅ API 키가 인증되었습니다. 이제 글을 교정할 수 있습니다.]**")
+        if st.button("API 키 변경하기", key="reset_key_btn"):
+            st.session_state.gemini_api_key = ""
+            cookie_manager.delete("gemini_api_key")
+            st.rerun()
+            
+        # JS to remove focus from any element to prevent yellow outline
+        st.components.v1.html("<script>Array.from(window.parent.document.querySelectorAll('input')).forEach(i => i.blur()); if(window.parent.document.activeElement) window.parent.document.activeElement.blur();</script>", height=0)
     else:
-        st.markdown("**:red[❌ API 키를 확인해주세요.]**")
+        st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 여기서 무료 키를 발급받으세요 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
+        api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...")
+        
+        if api_key_input != saved_key:
+            st.session_state.gemini_api_key = api_key_input
+            cookie_manager.set("gemini_api_key", api_key_input)
+            if api_key_input.startswith("AIza"):
+                st.rerun()
+                
+        if api_key_input and not api_key_input.startswith("AIza"):
+            st.markdown("""
+                <div style="background-color: #fdf3f4; padding: 15px; border-radius: 8px; border: 1px solid #fadce0; margin-top: 10px;">
+                    <p style="color: #d15663; margin: 0; font-size: 0.95em;">❌ API 키를 확인해주세요.</p>
+                </div>
+            """, unsafe_allow_html=True)
 
 # Session state initialization
 if "suggestions" not in st.session_state:
