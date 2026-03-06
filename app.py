@@ -208,17 +208,59 @@ with st.sidebar:
     if is_valid_key:
         st.markdown("""
             <div style="background-color: #eef7f0; padding: 20px; border-radius: 10px; border: 1px solid #d4ebd9; text-align: center; margin-bottom: 20px;">
-                <h3 style="color: #4a8b5b; margin-top: 0; margin-bottom: 0; font-family: 'Inter', sans-serif;">Status: Complete</h3>
+                <h3 style="color: #4a8b5b; margin-top: 0; margin-bottom: 0; font-family: 'Inter', sans-serif; font-size: 1.25rem;">API키 인증: Complete</h3>
             </div>
         """, unsafe_allow_html=True)
             
-        # JS to remove focus from any element to prevent yellow outline
-        st.components.v1.html("<script>Array.from(window.parent.document.querySelectorAll('input')).forEach(i => i.blur()); if(window.parent.document.activeElement) window.parent.document.activeElement.blur();</script>", height=0)
+        # JS to remove focus from any element to prevent yellow outline, and check if we should prompt to save
+        st.components.v1.html("""
+            <script>
+                // Remove focus
+                Array.from(window.parent.document.querySelectorAll('input')).forEach(i => i.blur()); 
+                if(window.parent.document.activeElement) window.parent.document.activeElement.blur();
+                
+                // Ask to save if not already saved and just entered
+                const currentKey = '""" + st.session_state.gemini_api_key + """';
+                const savedKey = window.localStorage.getItem('gemini_api_key_local');
+                if (currentKey && currentKey !== savedKey) {
+                    // Slight delay to ensure React/Streamlit renders the Complete UI first
+                    setTimeout(() => {
+                        if (window.confirm("이 API 키를 저장할까요?")) {
+                            window.localStorage.setItem('gemini_api_key_local', currentKey);
+                        } else {
+                            // If they say no, make sure we don't ask again for this specific key during this session
+                            window.localStorage.setItem('gemini_api_key_declined', currentKey);
+                        }
+                    }, 500);
+                }
+            </script>
+        """, height=0)
     else:
         st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 여기서 무료 키를 발급받으세요 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
-        api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...")
+        api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...", key="api_key_widget")
         
-        if api_key_input != saved_key:
+        # JS to retrieve from local storage on initial load
+        st.components.v1.html("""
+            <script>
+                const savedKey = window.localStorage.getItem('gemini_api_key_local');
+                const p = window.parent;
+                if (savedKey && savedKey.startsWith('AIza')) {
+                    const inputs = p.document.querySelectorAll('input[type="password"]');
+                    for (let input of inputs) {
+                        if (!input.value) {
+                            // We need to simulate React events to actually trigger a change in Streamlit
+                            let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                            nativeInputValueSetter.call(input, savedKey);
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            // Fake enter keypress
+                            input.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Enter'}));
+                        }
+                    }
+                }
+            </script>
+        """, height=0)
+        
+        if api_key_input != saved_key and api_key_input != st.session_state.gemini_api_key:
             st.session_state.gemini_api_key = api_key_input
             cookie_manager.set("gemini_api_key", api_key_input)
             if api_key_input.startswith("AIza"):
