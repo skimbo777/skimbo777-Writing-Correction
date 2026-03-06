@@ -273,13 +273,64 @@ render_custom_header()
 # Sidebar for Gemini API Key
 with st.sidebar:
     st.markdown("""
-        <div style="display: flex; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(168, 149, 116, 0.2);">
+        <div id="my-custom-profile" style="display: flex; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(168, 149, 116, 0.2); cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
             <div style="width: 36px; height: 36px; border-radius: 50%; background-color: #A89574; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <div style="color: #A89574; font-weight: 600; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 1.05rem;">My Profile</div>
         </div>
     """, unsafe_allow_html=True)
+    
+    st.components.v1.html("""
+        <script>
+            const initCloudCleaner = () => {
+                const parent = window.parent.document;
+                
+                // Aggressive element hider
+                const cleanDOM = () => {
+                    // Find profile button specifically (usually inside viewerBadge or managed-app-badge or Deploy)
+                    const profileBtn = parent.querySelector('.viewerBadge_container, [id^="viewerBadge"], [data-testid="manage-app-button"], [data-testid="stViewerBadge"]');
+                    if (profileBtn) {
+                        // Hide it instead of removing so we can simulate a click on it
+                        profileBtn.style.setProperty("display", "none", "important");
+                        profileBtn.style.setProperty("visibility", "hidden", "important");
+                        profileBtn.style.setProperty("opacity", "0", "important");
+                        window._streamlitProfileBtn = profileBtn; 
+                    }
+                    
+                    // Top right action buttons (Fork, GitHub, Share)
+                    const actionElems = parent.querySelectorAll('[data-testid="stActionElements"], .stActionButton, [data-testid="stAppDeployButton"], [data-testid="stToolbar"]');
+                    actionElems.forEach(el => {
+                        el.style.setProperty("display", "none", "important");
+                        el.style.setProperty("visibility", "hidden", "important");
+                        el.style.setProperty("opacity", "0", "important");
+                        el.style.setProperty("pointer-events", "none", "important");
+                    });
+                };
+                
+                setInterval(cleanDOM, 500); // Run aggressively
+                cleanDOM();
+                
+                // Bind profile click
+                const myProfile = document.getElementById("my-custom-profile");
+                if (myProfile) {
+                    myProfile.addEventListener("click", () => {
+                         let profileTarget = parent.querySelector('.viewerBadge_container, [id^="viewerBadge"], [data-testid="manage-app-button"], [data-testid="stViewerBadge"]');
+                         if (profileTarget) {
+                             // Some times the actual clickable is the child button
+                             const btn = profileTarget.querySelector('button') || profileTarget;
+                             btn.click();
+                         } else {
+                             alert("클라우드 설정에 연결할 수 없습니다. Streamlit 커뮤니티 클라우드 환경에서만 동작합니다.");
+                         }
+                    });
+                }
+            };
+            // Wait for parent DOM
+            if(document.readyState === 'complete') initCloudCleaner();
+            else window.addEventListener('load', initCloudCleaner);
+        </script>
+    """, height=0)
     
     st.markdown("### ⚙️ Settings")
     
