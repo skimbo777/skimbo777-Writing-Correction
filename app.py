@@ -15,7 +15,7 @@ except RuntimeError:
 
     asyncio.set_event_loop(asyncio.new_event_loop())
 
-st.set_page_config(page_title="서울광염교회 글쓰기 교정", page_icon="✨", layout="centered")
+st.set_page_config(page_title="서울광염교회 글쓰기 교정", page_icon="✨", layout="centered", initial_sidebar_state="collapsed")
 
 def inject_custom_css():
     st.markdown("""
@@ -38,12 +38,13 @@ def inject_custom_css():
         
         /* Hide Default Streamlit Elements (Toolbar, Footer, Deploy button) */
         #MainMenu {visibility: hidden;}
-        header {visibility: hidden !important;}
         footer {visibility: hidden !important;}
         [data-testid="stToolbar"] {visibility: hidden !important;}
         [data-testid="stAppDeployButton"] {display: none !important;}
         .stDeployButton {display: none !important;}
-        [data-testid="stHeader"] {display: none !important;}
+        
+        /* Ensure specific header area where toggle sidebar sits remains visible but background transparent */
+        header {background-color: transparent !important;}
         
         /* Background Blobs Setup */
         .blob-bg {
