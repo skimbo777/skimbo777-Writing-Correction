@@ -33,8 +33,6 @@ def inject_custom_css():
         #MainMenu {visibility: hidden;}
         header {background-color: transparent !important;}
         footer {visibility: hidden;}
-        [data-testid="collapsedControl"] { display: none !important; }
-        [data-testid="stSidebar"] { display: none !important; }
         
         /* Background Blobs Setup */
         .blob-bg {
@@ -136,8 +134,8 @@ def inject_custom_css():
             font-size: 1.05rem !important;
         }
         
-        /* Hide Streamlit Top Header (Menu, Deploy, Rerun prompts) */
-        header {visibility: hidden;}
+        /* Show Streamlit Top Header for mobile sidebar menu */
+        [data-testid="stHeader"] {background-color: transparent;}
         
         /* Custom Diamond Logo styles */
         .logo-container {
@@ -193,6 +191,18 @@ def render_custom_header():
 inject_custom_css()
 render_custom_header()
 
+# Sidebar for Gemini API Key
+with st.sidebar:
+    st.markdown("### ⚙️ 설정")
+    st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 무료 키 발급받기 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
+    
+    if "gemini_api_key" not in st.session_state:
+        st.session_state.gemini_api_key = ""
+        
+    api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...")
+    if api_key_input:
+        st.session_state.gemini_api_key = api_key_input
+
 # Session state initialization
 if "suggestions" not in st.session_state:
     st.session_state.suggestions = None
@@ -226,67 +236,44 @@ SYSTEM_PROMPT = """
 """
 
 def analyze_text(text):
-    import g4f
-    from g4f.client import Client
-    client = Client()
+    from google import genai
+    from google.genai import types
     
-    models_to_try = [
-        "gpt-4o",
-        "gpt-4",
-        "gpt-3.5-turbo",
-        g4f.models.default
-    ]
-    
-    response_content = None
-    
-    for model in models_to_try:
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "user", "content": f"{SYSTEM_PROMPT}\n\n[원본 글]\n{text}"}
-                ],
-                temperature=0.0,
-            )
-            if response and response.choices and response.choices[0].message.content:
-                content = response.choices[0].message.content.strip()
-                if content:
-                    response_content = content
-                    break
-        except Exception:
-            continue
-            
+    if not st.session_state.gemini_api_key:
+        return None
+
     try:
-        if not response_content:
-            raise ValueError("AI 서버들이 모두 빈 응답을 반환했거나 연결이 차단되었습니다.")
-            
-        content = response_content
-        print(f"DEBUG AI RESPONSE: {content}") # Log to terminal
+        client = genai.Client(api_key=st.session_state.gemini_api_key)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=text,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                temperature=0.0,
+                response_mime_type="application/json",
+            ),
+        )
+        content = response.text.strip()
         
-        import re
-        match = re.search(r'```(?:json)?(.*?)```', content, re.DOTALL)
-        if match:
-            content = match.group(1).strip()
-            
-        # Robust array extraction: find first [ and last ]
         start_idx = content.find('[')
         end_idx = content.rfind(']')
+        
         if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
-            content = content[start_idx:end_idx+1]
-            
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            raise ValueError("AI 서버가 올바른 교정 데이터(JSON) 형식이 아닌 다른 답변을 반환했습니다. 잠시 후 다시 시도해주세요.")
+            json_str = content[start_idx:end_idx+1]
+            return json.loads(json_str)
+        else:
+            raise ValueError("Invalid JSON format from Gemini.")
     except Exception as e:
-        st.error(f"AI 서버 접속이 원활하지 않거나 결과를 분석하는데 실패했습니다. 잠시 후 다시 '분석하기' 버튼을 눌러주세요. 에러: {e}")
+        st.error(f"AI 분석 실패. API 키가 정확한지 확인하시거나 잠시 후 다시 시도해주세요. 에러: {e}")
         return None
 
 if st.button("분석하기", type="primary"):
-    if not user_text.strip():
+    if not st.session_state.gemini_api_key.strip():
+        st.warning("사이드바에 Gemini API Key를 입력해주세요.")
+    elif not user_text.strip():
         st.warning("교정할 글을 입력해주세요.")
     else:
-        with st.spinner("글을 분석하고 있습니다... (10~30초 소요될 수 있습니다)"):
+        with st.spinner("글을 분석하고 있습니다... (5~15초 소요될 수 있습니다)"):
             st.session_state.original_text = user_text
             suggestions = analyze_text(user_text)
             if suggestions is not None:
@@ -332,37 +319,22 @@ if st.session_state.suggestions is not None:
                         replacement = s.get('alternative') if s.get('alternative') else s.get('correction')
                         user_content += f"- '{s.get('original', '')}' -> '{replacement}'\n"
                     
-                    import g4f
-                    from g4f.client import Client
-                    client = Client()
+                    from google import genai
+                    from google.genai import types
                     
-                    apply_models_to_try = [
-                        "gpt-4o",
-                        "gpt-4",
-                        "gpt-3.5-turbo",
-                        g4f.models.default
-                    ]
-                    
-                    apply_response_content = None
-                    
-                    for model in apply_models_to_try:
-                        try:
-                            apply_resp = client.chat.completions.create(
-                                model=model,
-                                messages=[
-                                    {"role": "user", "content": f"{APPLY_PROMPT}\n\n{user_content}"}
-                                ],
+                    try:
+                        client = genai.Client(api_key=st.session_state.gemini_api_key)
+                        apply_resp = client.models.generate_content(
+                            model='gemini-1.5-flash',
+                            contents=user_content,
+                            config=types.GenerateContentConfig(
+                                system_instruction=APPLY_PROMPT,
                                 temperature=0.0
                             )
-                            if apply_resp and apply_resp.choices and apply_resp.choices[0].message.content:
-                                c = apply_resp.choices[0].message.content.strip()
-                                if c:
-                                    apply_response_content = c
-                                    break
-                        except Exception:
-                            continue
-                            
-                    st.session_state.final_text = apply_response_content if apply_response_content else "글 생성에 실패했습니다. 다시 시도해주세요."
+                        )
+                        st.session_state.final_text = apply_resp.text.strip()
+                    except Exception as e:
+                        st.session_state.final_text = f"글 생성에 실패했습니다. API 키 오류 또는 서버 문제일 수 있습니다. 에러: {e}"
 
 if st.session_state.final_text:
     st.markdown("### ✨ 완성된 글")
