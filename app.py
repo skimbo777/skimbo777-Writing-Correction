@@ -46,6 +46,28 @@ def inject_custom_css():
         /* Ensure specific header area where toggle sidebar sits remains visible but background transparent */
         header {background-color: transparent !important;}
         
+        /* Sidebar Toggle Button (Arrow) - Always Visible & Custom Color */
+        [data-testid="collapsedControl"] {
+            opacity: 1 !important;
+            visibility: visible !important;
+            color: #A89574 !important;
+        }
+        [data-testid="collapsedControl"] svg {
+            fill: #A89574 !important;
+            color: #A89574 !important;
+        }
+        [data-testid="collapsedControl"]:hover {
+            color: #8c7b5f !important;
+        }
+        [data-testid="collapsedControl"]:hover svg {
+            fill: #8c7b5f !important;
+            color: #8c7b5f !important;
+        }
+        button[kind="header"] {
+            color: #A89574 !important;
+            opacity: 1 !important;
+        }
+        
         /* Background Blobs Setup */
         .blob-bg {
             position: fixed;
