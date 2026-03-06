@@ -161,24 +161,18 @@ def inject_custom_css():
             z-index: 10;
         }
 
-        /* Custom SVG Spinner for "Loading..." state */
-        .stSpinner > div > div {
-            border: none !important;
-            border-color: transparent !important;
-            animation: none !important;
-            width: 32px !important;
-            height: 32px !important;
-            background-color: transparent !important;
+        /* Custom SVG Spinner for "Loading..." state - Modified to support standard text next to it */
+        .custom-spinner-icon {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
             background-image: url('data:image/svg+xml;utf8,<svg width="32" height="32" viewBox="0 0 24 24" fill="%238a8a8a" xmlns="http://www.w3.org/2000/svg"><path d="M12.5 5A2.5 2.5 0 1 0 10 2.5 2.5 2.5 0 0 0 12.5 5zm2.74 3.65-2.09-1.92A2.43 2.43 0 0 0 11.4 6H10a2.5 2.5 0 0 0-2.5 2.5v4A2.5 2.5 0 0 0 10 15h.58l-2.08 2.08L10 18.5l6-6v-1.12l-1.39-1.3l2.84-2.84L16 5.83l-2.84 2.84zM16 11v3h-3v4l-4 4-1.5-1.5 3.5-3.5v-4.63l2.5-2.5v2.13h3z"/></svg>');
             background-repeat: no-repeat;
             background-position: center;
             background-size: contain;
-            /* Make the rowing figure rock back and forth */
-            animation: row-boat 1.2s ease-in-out infinite alternate !important;
-        }
-        
-        .stSpinner circle {
-            display: none !important;
+            animation: row-boat 1.2s ease-in-out infinite alternate;
+            vertical-align: middle;
+            margin-left: 8px;
         }
 
         @keyframes row-boat {
@@ -368,7 +362,7 @@ if st.button("분석하기", type="primary"):
     elif not user_text.strip():
         st.warning("교정할 글을 입력해주세요.")
     else:
-        with st.spinner("글을 분석하고 있습니다... (5~15초 소요될 수 있습니다)"):
+        with st.spinner("교정된 글을 분석하고 있습니다... (5~15초 소요될 수 있습니다)"):
             st.session_state.original_text = user_text
             suggestions = analyze_text(user_text)
             if suggestions is not None:
@@ -413,7 +407,7 @@ if st.session_state.suggestions is not None:
         if not selected_suggestions:
             st.session_state.final_text = st.session_state.original_text
         else:
-            with st.spinner("최종 글을 생성하고 있습니다..."):
+            with st.spinner("교정된 글을 생성하고 있습니다..."):
                 APPLY_PROMPT = """
                 당신은 전문 교정가입니다. 
                 사용자가 작성한 <원본 글>과 <승인한 수정 및 추천 표현들>을 제공받습니다.
@@ -445,5 +439,5 @@ if st.session_state.suggestions is not None:
                         st.session_state.final_text = f"글 생성에 실패했습니다. API 키 오류 또는 서버 문제일 수 있습니다. 에러: {e}"
 
 if st.session_state.final_text:
-    st.markdown("### ✨ 완성된 글")
+    st.markdown("### ✨ 완성된 글 <span class='custom-spinner-icon'></span>", unsafe_allow_html=True)
     st.text_area("아래 텍스트를 복사하여 사용하세요:", value=st.session_state.final_text, height=300, key="final")
