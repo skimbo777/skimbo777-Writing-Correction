@@ -251,7 +251,7 @@ def analyze_text(text):
     try:
         client = genai.Client(api_key=st.session_state.gemini_api_key)
         response = client.models.generate_content(
-            model='gemini-1.5-flash-latest',
+            model='gemini-1.5-flash',
             contents=text,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
@@ -331,7 +331,7 @@ if st.session_state.suggestions is not None:
                     try:
                         client = genai.Client(api_key=st.session_state.gemini_api_key)
                         apply_resp = client.models.generate_content(
-                            model='gemini-1.5-flash-latest',
+                            model='gemini-1.5-flash',
                             contents=user_content,
                             config=types.GenerateContentConfig(
                                 system_instruction=APPLY_PROMPT,
