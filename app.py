@@ -160,6 +160,31 @@ def inject_custom_css():
             position: relative;
             z-index: 10;
         }
+
+        /* Custom SVG Spinner for "Loading..." state */
+        .stSpinner > div > div {
+            border: none !important;
+            border-color: transparent !important;
+            animation: none !important;
+            width: 32px !important;
+            height: 32px !important;
+            background-color: transparent !important;
+            background-image: url('data:image/svg+xml;utf8,<svg width="32" height="32" viewBox="0 0 24 24" fill="%238a8a8a" xmlns="http://www.w3.org/2000/svg"><path d="M12.5 5A2.5 2.5 0 1 0 10 2.5 2.5 2.5 0 0 0 12.5 5zm2.74 3.65-2.09-1.92A2.43 2.43 0 0 0 11.4 6H10a2.5 2.5 0 0 0-2.5 2.5v4A2.5 2.5 0 0 0 10 15h.58l-2.08 2.08L10 18.5l6-6v-1.12l-1.39-1.3l2.84-2.84L16 5.83l-2.84 2.84zM16 11v3h-3v4l-4 4-1.5-1.5 3.5-3.5v-4.63l2.5-2.5v2.13h3z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            /* Make the rowing figure rock back and forth */
+            animation: row-boat 1.2s ease-in-out infinite alternate !important;
+        }
+        
+        .stSpinner circle {
+            display: none !important;
+        }
+
+        @keyframes row-boat {
+            0% { transform: rotate(-15deg) translateX(-2px); }
+            100% { transform: rotate(15deg) translateX(2px); }
+        }
         </style>
         
         <div class="blob-bg">
