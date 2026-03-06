@@ -161,39 +161,29 @@ def inject_custom_css():
             z-index: 10;
         }
 
-        /* Custom SVG Spinner to replace default circle */
-        [data-testid="stSpinner"] > div > div:first-child {
-            width: 32px !important;
-            height: 32px !important;
-            background-image: url('data:image/svg+xml;utf8,<svg width="32" height="32" viewBox="0 0 24 24" fill="%238a8a8a" xmlns="http://www.w3.org/2000/svg"><path d="M12.5 5A2.5 2.5 0 1 0 10 2.5 2.5 2.5 0 0 0 12.5 5zm2.74 3.65-2.09-1.92A2.43 2.43 0 0 0 11.4 6H10a2.5 2.5 0 0 0-2.5 2.5v4A2.5 2.5 0 0 0 10 15h.58l-2.08 2.08L10 18.5l6-6v-1.12l-1.39-1.3l2.84-2.84L16 5.83l-2.84 2.84zM16 11v3h-3v4l-4 4-1.5-1.5 3.5-3.5v-4.63l2.5-2.5v2.13h3z"/></svg>');
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: contain;
-            animation: row-boat 1.2s ease-in-out infinite alternate !important;
-            margin-right: 10px;
+        /* Hide default Streamlit status */
+        [data-testid="stStatusWidget"] {
+            visibility: hidden;
         }
         
-        [data-testid="stSpinner"] > div > div:first-child > svg {
-            display: none !important;
-        }
-
-        /* Custom SVG Spinner for "Loading..." state - Modified to support standard text next to it */
-        .custom-spinner-icon {
+        /* Pencil Animation */
+        .pencil-anim {
             display: inline-block;
-            width: 32px;
-            height: 32px;
-            background-image: url('data:image/svg+xml;utf8,<svg width="32" height="32" viewBox="0 0 24 24" fill="%238a8a8a" xmlns="http://www.w3.org/2000/svg"><path d="M12.5 5A2.5 2.5 0 1 0 10 2.5 2.5 2.5 0 0 0 12.5 5zm2.74 3.65-2.09-1.92A2.43 2.43 0 0 0 11.4 6H10a2.5 2.5 0 0 0-2.5 2.5v4A2.5 2.5 0 0 0 10 15h.58l-2.08 2.08L10 18.5l6-6v-1.12l-1.39-1.3l2.84-2.84L16 5.83l-2.84 2.84zM16 11v3h-3v4l-4 4-1.5-1.5 3.5-3.5v-4.63l2.5-2.5v2.13h3z"/></svg>');
+            width: 24px;
+            height: 24px;
+            background-image: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="%238a8a8a" xmlns="http://www.w3.org/2000/svg"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>');
             background-repeat: no-repeat;
             background-position: center;
             background-size: contain;
-            animation: row-boat 1.2s ease-in-out infinite alternate;
+            animation: pencil-write 1s infinite alternate;
             vertical-align: middle;
             margin-left: 8px;
         }
 
-        @keyframes row-boat {
-            0% { transform: rotate(-15deg) translateX(-2px); }
-            100% { transform: rotate(15deg) translateX(2px); }
+        @keyframes pencil-write {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(4px, -4px) rotate(15deg); }
+            100% { transform: translate(8px, 0) rotate(0deg); }
         }
         </style>
         
@@ -350,7 +340,7 @@ def analyze_text(text):
     try:
         client = genai.Client(api_key=st.session_state.gemini_api_key)
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.0-flash',
             contents=text,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
@@ -383,11 +373,20 @@ if st.button("교정하기", type="primary"):
         st.session_state.final_text = ""
         st.session_state.original_text = ""
         
-        with st.spinner("교정된 글을 분석하고 있습니다... (5~15초 소요될 수 있습니다) <span class='custom-spinner-icon'></span>"):
-            st.session_state.original_text = user_text
-            suggestions = analyze_text(user_text)
-            if suggestions is not None:
-                st.session_state.suggestions = suggestions
+        loading_placeholder = st.empty()
+        with loading_placeholder.container():
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                st.button("Stop 🛑", key="stop_analyze")
+            with col2:
+                st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px;'>교정된 글을 분석하고 있습니다... (5~15초 소요될 수 있습니다) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
+                
+        st.session_state.original_text = user_text
+        suggestions = analyze_text(user_text)
+        loading_placeholder.empty()
+        
+        if suggestions is not None:
+            st.session_state.suggestions = suggestions
                 
 if st.session_state.suggestions is not None:
     corrections = [s for s in st.session_state.suggestions if s.get("type", "correction") != "suggestion"]
@@ -428,37 +427,46 @@ if st.session_state.suggestions is not None:
         if not selected_suggestions:
             st.session_state.final_text = st.session_state.original_text
         else:
-            with st.spinner("교정된 글을 생성하고 있습니다... <span class='custom-spinner-icon'></span>"):
-                APPLY_PROMPT = """
-                당신은 전문 교정가입니다. 
-                사용자가 작성한 <원본 글>과 <승인한 수정 및 추천 표현들>을 제공받습니다.
-                **최우선 원칙**: AI가 문장 전체를 새로 쓰거나 구조를 변경하는 것을 절대 금지합니다. 사용자의 고유한 문체와 문장 구조를 100% 그대로 유지해야 합니다.
-                오직 <승인한 목록>에 있는 단어/문구만 그 자리에서 정확히 교체하고, 다른 어휘나 문장 논리는 절대 임의로 바꾸지 마세요.
-                (단, 문체가 혼용된 경우에 한해 일관성 있게 마지막 맺음말을 자연스럽게 조정하세요.)
-                완성된 글 텍스트만 출력하세요. 다른 설명은 덧붙이지 마세요.
-                """
+            loading_placeholder2 = st.empty()
+            with loading_placeholder2.container():
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    st.button("Stop 🛑", key="stop_gen")
+                with col2:
+                    st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px;'>교정된 글을 생성하고 있습니다... <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
+
+            APPLY_PROMPT = """
+            당신은 전문 교정가입니다. 
+            사용자가 작성한 <원본 글>과 <승인한 수정 및 추천 표현들>을 제공받습니다.
+            **최우선 원칙**: AI가 문장 전체를 새로 쓰거나 구조를 변경하는 것을 절대 금지합니다. 사용자의 고유한 문체와 문장 구조를 100% 그대로 유지해야 합니다.
+            오직 <승인한 목록>에 있는 단어/문구만 그 자리에서 정확히 교체하고, 다른 어휘나 문장 논리는 절대 임의로 바꾸지 마세요.
+            (단, 문체가 혼용된 경우에 한해 일관성 있게 마지막 맺음말을 자연스럽게 조정하세요.)
+            완성된 글 텍스트만 출력하세요. 다른 설명은 덧붙이지 마세요.
+            """
                 
-                user_content = f"<원본 글>\n{st.session_state.original_text}\n\n<승인한 수정 및 추천 표현들>\n"
-                for s in selected_suggestions:
-                    user_content += f"- '{s.get('original', '')}' -> '{s.get('correction', '')}'\n"
-                    
-                    from google import genai
-                    from google.genai import types
-                    
-                    try:
-                        client = genai.Client(api_key=st.session_state.gemini_api_key)
-                        apply_resp = client.models.generate_content(
-                            model='gemini-2.5-flash',
-                            contents=user_content,
-                            config=types.GenerateContentConfig(
-                                system_instruction=APPLY_PROMPT,
-                                temperature=0.0
-                            )
-                        )
-                        st.session_state.final_text = apply_resp.text.strip()
-                    except Exception as e:
-                        st.session_state.final_text = f"글 생성에 실패했습니다. API 키 오류 또는 서버 문제일 수 있습니다. 에러: {e}"
+            user_content = f"<원본 글>\n{st.session_state.original_text}\n\n<승인한 수정 및 추천 표현들>\n"
+            for s in selected_suggestions:
+                user_content += f"- '{s.get('original', '')}' -> '{s.get('correction', '')}'\n"
+                
+            from google import genai
+            from google.genai import types
+            
+            try:
+                client = genai.Client(api_key=st.session_state.gemini_api_key)
+                apply_resp = client.models.generate_content(
+                    model='gemini-2.0-flash',
+                    contents=user_content,
+                    config=types.GenerateContentConfig(
+                        system_instruction=APPLY_PROMPT,
+                        temperature=0.0
+                    )
+                )
+                st.session_state.final_text = apply_resp.text.strip()
+            except Exception as e:
+                st.session_state.final_text = f"글 생성에 실패했습니다. API 키 오류 또는 서버 문제일 수 있습니다. 에러: {e}"
+                
+            loading_placeholder2.empty()
 
 if st.session_state.final_text:
-    st.markdown("### ✨ 완성된 글 <span class='custom-spinner-icon'></span>", unsafe_allow_html=True)
+    st.markdown("### ✨ 완성된 글 <span class='pencil-anim'></span>", unsafe_allow_html=True)
     st.text_area("아래 텍스트를 복사하여 사용하세요:", value=st.session_state.final_text, height=300, key="final")
