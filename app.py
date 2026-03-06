@@ -1,6 +1,13 @@
 import streamlit as st
 import asyncio
 import json
+import extra_streamlit_components as stx
+
+@st.cache_resource(experimental_allow_widgets=True)
+def get_manager():
+    return stx.CookieManager(key="cookie_manager")
+
+cookie_manager = get_manager()
 
 try:
     asyncio.get_running_loop()
@@ -194,14 +201,17 @@ render_custom_header()
 # Sidebar for Gemini API Key
 with st.sidebar:
     st.markdown("### ⚙️ 설정")
-    st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 무료 키 발급받기 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
+    st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 여기서 무료 키를 발급받으세요 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
+    
+    saved_key = cookie_manager.get("gemini_api_key") or ""
     
     if "gemini_api_key" not in st.session_state:
-        st.session_state.gemini_api_key = ""
+        st.session_state.gemini_api_key = saved_key
         
     api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...")
-    if api_key_input:
+    if api_key_input and api_key_input != saved_key:
         st.session_state.gemini_api_key = api_key_input
+        cookie_manager.set("gemini_api_key", api_key_input)
 
 # Session state initialization
 if "suggestions" not in st.session_state:
