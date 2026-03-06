@@ -3,11 +3,7 @@ import asyncio
 import json
 import extra_streamlit_components as stx
 
-@st.cache_resource(experimental_allow_widgets=True)
-def get_manager():
-    return stx.CookieManager(key="cookie_manager")
-
-cookie_manager = get_manager()
+cookie_manager = stx.CookieManager(key="cookie_manager")
 
 try:
     asyncio.get_running_loop()
