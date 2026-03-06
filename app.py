@@ -422,96 +422,118 @@ if st.button("교정하기", type="primary"):
             st.session_state.suggestions = suggestions
                 
 if st.session_state.suggestions is not None:
+    # Render interactive text area replacement
+    st.markdown("### 📝 분석된 원문 (틀린 단어 위에 마우스를 올리면 교정 내용이 보입니다)")
+    
+    annotated_text = html.escape(st.session_state.original_text)
+    
     corrections = [s for s in st.session_state.suggestions if s.get("type", "correction") != "suggestion"]
     literary_suggestions = [s for s in st.session_state.suggestions if s.get("type") == "suggestion"]
+    all_sugs = corrections + literary_suggestions
     
-    st.markdown("### 🔍 교정 제안 (원하시는 교정 항목만 체크해주세요)")
+    st.markdown("""
+    <style>
+        .highlight-word {
+            position: relative;
+            cursor: pointer;
+            background-color: rgba(255, 209, 217, 0.4);
+            border-radius: 3px;
+            padding: 0 2px;
+            border-bottom: 2px dashed #f28b9c;
+            color: #b02a46;
+            transition: all 0.2s ease;
+        }
+        .highlight-word:hover, .highlight-word:active {
+            background-color: rgba(255, 209, 217, 1);
+        }
+        .highlight-word:hover::after, .highlight-word:active::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            color: #333;
+            padding: 12px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-size: 0.95rem;
+            z-index: 9999;
+            width: max-content;
+            max-width: 320px;
+            line-height: 1.5;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 1px solid #eee;
+            text-align: left;
+            pointer-events: none;
+        }
+        .highlight-word:hover::before, .highlight-word:active::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            margin-left: -8px;
+            border-width: 8px;
+            border-style: solid;
+            border-color: #fff transparent transparent transparent;
+            z-index: 10000;
+        }
+    </style>
+    """, unsafe_allow_html=True)
     
-    selected_suggestions = []
-    
-    if len(corrections) == 0:
-        st.success("발견된 오류가 없습니다! 훌륭한 글입니다.")
-    else:
-        for i, sug in enumerate(corrections):
-            orig = html.escape(sug.get('original', ''))
-            st.markdown(f"<div id='sug-marker-{i}' class='sug-marker' data-index='{i}' data-orig='{orig}'></div>", unsafe_allow_html=True)
-            label_text = f"**수정 전**: `{sug.get('original', '')}` ➡️ **수정 후**: `{sug.get('correction', '')}`  \n*(이유: {sug.get('reason', '')})*"
-            
-            checked = st.checkbox(
-                label_text,
-                value=True,
-                key=f"chk_corr_{i}"
-            )
-            if checked:
-                selected_suggestions.append(sug)
-                
-    if len(literary_suggestions) > 0:
-        st.markdown("### ✨ 문학적 어휘 제안")
-        for j, sug in enumerate(literary_suggestions):
-            idx = len(corrections) + j
-            orig = html.escape(sug.get('original', ''))
-            st.markdown(f"<div id='sug-marker-{idx}' class='sug-marker' data-index='{idx}' data-orig='{orig}'></div>", unsafe_allow_html=True)
-            label_text = f"**{sug.get('original', '')}** 대신 💡 **{sug.get('correction', '')}**  \n*(추천 사유: {sug.get('reason', '')})*"
-            
-            checked = st.checkbox(
-                label_text,
-                value=False,
-                key=f"chk_sug_{idx}"
-            )
-            if checked:
-                selected_suggestions.append(sug)
-                
-    # JS for interactive highlights
-    st.components.v1.html("""
-    <script>
-        const observer = new MutationObserver(() => {
-            const parent = window.parent.document;
-            const markers = parent.querySelectorAll('.sug-marker');
-            if (markers.length > 0) {
-                markers.forEach(marker => {
-                    if(marker.dataset.bound === "true") return;
-                    
-                    const index = marker.getAttribute('data-index');
-                    const checkboxDiv = marker.nextElementSibling;
-                    
-                    if (checkboxDiv && checkboxDiv.getAttribute('data-testid') === 'stCheckbox') {
-                        const label = checkboxDiv.querySelector('label');
-                        if(label) {
-                            label.addEventListener('click', () => {
-                                parent.querySelectorAll('.highlight-word').forEach(el => {
-                                    el.style.backgroundColor = 'transparent';
-                                    el.style.boxShadow = 'none';
-                                });
-                                
-                                const targetSpan = parent.getElementById('highlight-' + index);
-                                if (targetSpan) {
-                                    targetSpan.style.backgroundColor = '#ffd1d9';
-                                    targetSpan.style.boxShadow = '0 0 0 4px #ffd1d9';
-                                    
-                                    // Scroll into view within the scrolling div
-                                    targetSpan.scrollIntoView({behavior: 'smooth', block: 'center'});
-                                }
-                            });
-                            marker.dataset.bound = "true";
-                        }
-                    }
-                });
-            }
-        });
-        observer.observe(window.parent.document.body, { childList: true, subtree: true });
-    </script>
-    """, height=0)
+    for i, sug in enumerate(all_sugs):
+        orig = html.escape(sug.get('original', ''))
+        corr = html.escape(sug.get('correction', ''))
+        reason = html.escape(sug.get('reason', ''))
+        sug_type = sug.get('type', 'correction')
         
-    gen_btn_col, gen_stop_col = st.columns([4, 6])
-    with gen_btn_col:
-        generate_clicked = st.button("선택한 교정사항 적용하여 완성하기", type="primary")
-    with gen_stop_col:
-        gen_stop_placeholder = st.empty()
-        
-    if generate_clicked:
-        if not selected_suggestions:
-            st.session_state.final_text = st.session_state.original_text
+        if sug_type == 'suggestion':
+            tooltip_text = f"✨ 어휘 추천\\n💡 {corr}\\n({reason})"
         else:
+            tooltip_text = f"🔍 수정 제안\\n❌ {orig}\\n✅ {corr}\\n({reason})"
+            
+        if orig and orig in annotated_text:
+            span_html = f'<span class="highlight-word" data-tooltip="{tooltip_text}">{orig}</span>'
+            annotated_text = annotated_text.replace(orig, span_html, 1)
+            
+    pseudo_textarea_html = f'''
+    <div id="original-text-display" style="
+        white-space: pre-wrap; 
+        background-color: #fff; 
+        border: 1px solid #ccc; 
+        padding: 1.5rem; 
+        border-radius: 8px; 
+        min-height: 500px; 
+        max-height: 800px; 
+        overflow-y: auto; 
+        font-size: 1.05rem; 
+        line-height: 1.8;
+        color: #333;
+        font-family: inherit;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    ">{annotated_text}</div>
+    '''
+    st.markdown(pseudo_textarea_html, unsafe_allow_html=True)
+    
+    col_reset, col_apply = st.columns([3, 7])
+    with col_reset:
+        if st.button("새로운 글 작성하기 (초기화)"):
+            st.session_state.suggestions = None
+            st.session_state.original_text = ""
+            st.session_state.final_text = ""
+            st.rerun()
+            
+    with col_apply:
+        gen_btn_col, gen_stop_col = st.columns([6, 4])
+        with gen_btn_col:
+            generate_clicked = st.button("모든 교정 제안을 적용하여 완성하기", type="primary")
+        with gen_stop_col:
+            gen_stop_placeholder = st.empty()
+            
+        if generate_clicked:
+            selected_suggestions = all_sugs
+            
             with gen_stop_placeholder.container():
                 st.button("Stop", type="primary", key="stop_gen")
                 
