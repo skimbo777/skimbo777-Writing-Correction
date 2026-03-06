@@ -46,15 +46,24 @@ def inject_custom_css():
         /* Ensure specific header area where toggle sidebar sits remains visible but background transparent */
         header {background-color: transparent !important;}
         
-        /* Sidebar Toggle Button (Arrow) - Always Visible & Custom Color */
+        /* Sidebar Toggle Button (Arrow) - Always Visible, Custom Color, Larger Size */
         [data-testid="collapsedControl"] {
+            display: flex !important;
             opacity: 1 !important;
             visibility: visible !important;
             color: #A89574 !important;
+            background-color: transparent !important;
+            transform: scale(1.3) translate(5px, 5px) !important;
+            transition: color 0.2s, transform 0.2s !important;
+            z-index: 999999 !important;
+            width: auto !important;
+            height: auto !important;
         }
         [data-testid="collapsedControl"] svg {
             fill: #A89574 !important;
             color: #A89574 !important;
+            width: 1.5rem !important;
+            height: 1.5rem !important;
         }
         [data-testid="collapsedControl"]:hover {
             color: #8c7b5f !important;
@@ -66,6 +75,18 @@ def inject_custom_css():
         button[kind="header"] {
             color: #A89574 !important;
             opacity: 1 !important;
+            visibility: visible !important;
+            display: flex !important;
+        }
+        
+        /* Override specifically streamlit's hover to hide interaction */
+        .st-emotion-cache-1avcm0n {
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        .st-emotion-cache-15ecox0 {
+            opacity: 1 !important;
+            visibility: visible !important;
         }
         
         /* Background Blobs Setup */
