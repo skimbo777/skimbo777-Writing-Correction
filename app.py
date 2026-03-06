@@ -2,6 +2,9 @@ import streamlit as st
 import asyncio
 import json
 import extra_streamlit_components as stx
+import html
+from google import genai
+from google.genai import types
 
 cookie_manager = stx.CookieManager(key="cookie_manager")
 
@@ -312,8 +315,8 @@ user_text = st.text_area("교정할 글을 입력해주세요:", height=300)
 SYSTEM_PROMPT = """
 당신은 완벽한 전문 교정가입니다.
 
-[가장 중요한 원칙 - 문장 보존]
-**AI가 문장 전체를 새로 쓰거나 치환, 구조를 변경하는 것을 절대 금지합니다.** 사용자의 고유한 문체와 문장 구조를 100% 그대로 유지하는 것이 최우선입니다. 오류가 있는 부분만 최소한으로 단어 단위로 고치세요.
+[가장 중요한 원칙 - 문장 및 양식 보존]
+**AI가 문장 전체를 새로 쓰거나 치환, 구조를 변경하는 것을 절대 금지합니다.** 사용자의 고유한 문체와 문장 구조뿐만 아니라, 원문에 포함된 **줄바꿈(엔터), 문단 나누기, 띄어쓰기 간격 등 모든 서식과 양식을 100% 그대로 유지**하는 것이 최우선입니다. 오류가 있는 부분만 최소한으로 단어 단위로 고치세요.
 
 [서울광염교회 주요 글쓰기 규정 ("type": "correction")]
 1. 존칭: '시', '께서' 등의 존칭 선어말 어미와 겸양어는 하나님, 예수님, 성령님께만 사용합니다. 사람에게는 쓰지 않습니다. (예: 목사님이 하셨습니다(X) -> 목사님이 했습니다(O)) 직분 뒤에만 '님'을 씁니다.
@@ -331,9 +334,6 @@ SYSTEM_PROMPT = """
 """
 
 def analyze_text(text):
-    from google import genai
-    from google.genai import types
-    
     if not st.session_state.gemini_api_key:
         return None
 
@@ -400,6 +400,8 @@ if st.session_state.suggestions is not None:
         st.success("발견된 오류가 없습니다! 훌륭한 글입니다.")
     else:
         for i, sug in enumerate(corrections):
+            orig = html.escape(sug.get('original', ''))
+            st.markdown(f"<div id='sug-marker-{i}' class='sug-marker' data-index='{i}' data-orig='{orig}'></div>", unsafe_allow_html=True)
             label_text = f"**수정 전**: `{sug.get('original', '')}` ➡️ **수정 후**: `{sug.get('correction', '')}`  \n*(이유: {sug.get('reason', '')})*"
             
             checked = st.checkbox(
@@ -412,33 +414,82 @@ if st.session_state.suggestions is not None:
                 
     if len(literary_suggestions) > 0:
         st.markdown("### ✨ 문학적 어휘 제안")
-        for i, sug in enumerate(literary_suggestions):
+        for j, sug in enumerate(literary_suggestions):
+            idx = len(corrections) + j
+            orig = html.escape(sug.get('original', ''))
+            st.markdown(f"<div id='sug-marker-{idx}' class='sug-marker' data-index='{idx}' data-orig='{orig}'></div>", unsafe_allow_html=True)
             label_text = f"**{sug.get('original', '')}** 대신 💡 **{sug.get('correction', '')}**  \n*(추천 사유: {sug.get('reason', '')})*"
             
             checked = st.checkbox(
                 label_text,
                 value=False,
-                key=f"chk_sug_{i}"
+                key=f"chk_sug_{idx}"
             )
             if checked:
                 selected_suggestions.append(sug)
+                
+    # JS for interactive highlights
+    st.components.v1.html("""
+    <script>
+        const observer = new MutationObserver(() => {
+            const parent = window.parent.document;
+            const markers = parent.querySelectorAll('.sug-marker');
+            if (markers.length > 0) {
+                markers.forEach(marker => {
+                    if(marker.dataset.bound === "true") return;
+                    
+                    const index = marker.getAttribute('data-index');
+                    const checkboxDiv = marker.nextElementSibling;
+                    
+                    if (checkboxDiv && checkboxDiv.getAttribute('data-testid') === 'stCheckbox') {
+                        const label = checkboxDiv.querySelector('label');
+                        if(label) {
+                            label.addEventListener('click', () => {
+                                parent.querySelectorAll('.highlight-word').forEach(el => {
+                                    el.style.backgroundColor = 'transparent';
+                                    el.style.boxShadow = 'none';
+                                });
+                                
+                                const targetSpan = parent.getElementById('highlight-' + index);
+                                if (targetSpan) {
+                                    targetSpan.style.backgroundColor = '#ffd1d9';
+                                    targetSpan.style.boxShadow = '0 0 0 4px #ffd1d9';
+                                    
+                                    // Scroll into view within the scrolling div
+                                    targetSpan.scrollIntoView({behavior: 'smooth', block: 'center'});
+                                }
+                            });
+                            marker.dataset.bound = "true";
+                        }
+                    }
+                });
+            }
+        });
+        observer.observe(window.parent.document.body, { childList: true, subtree: true });
+    </script>
+    """, height=0)
         
-    if st.button("선택한 교정사항 적용하여 완성하기", type="primary"):
+    gen_btn_col, gen_stop_col = st.columns([4, 6])
+    with gen_btn_col:
+        generate_clicked = st.button("선택한 교정사항 적용하여 완성하기", type="primary")
+    with gen_stop_col:
+        gen_stop_placeholder = st.empty()
+        
+    if generate_clicked:
         if not selected_suggestions:
             st.session_state.final_text = st.session_state.original_text
         else:
+            with gen_stop_placeholder.container():
+                st.button("Stop", type="primary", key="stop_gen")
+                
             loading_placeholder2 = st.empty()
             with loading_placeholder2.container():
-                col1, col2 = st.columns([1, 4])
-                with col1:
-                    st.button("Stop 🛑", key="stop_gen")
-                with col2:
-                    st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px;'>교정된 글을 생성하고 있습니다... <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px;'>교정된 글을 생성하고 있습니다... <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
 
             APPLY_PROMPT = """
             당신은 전문 교정가입니다. 
             사용자가 작성한 <원본 글>과 <승인한 수정 및 추천 표현들>을 제공받습니다.
-            **최우선 원칙**: AI가 문장 전체를 새로 쓰거나 구조를 변경하는 것을 절대 금지합니다. 사용자의 고유한 문체와 문장 구조를 100% 그대로 유지해야 합니다.
+            **최우선 원칙**: AI가 문장 전체를 새로 쓰거나 구조를 변경하는 것을 절대 금지합니다. 사용자의 고유한 문체, 문장 구조, 그리고 **줄바꿈(엔터) 처리를 포함한 모든 원문의 단락 구분을 100% 그대로 유지**해야 합니다. 빈 줄(엔터) 하나라도 임의로 삭제하거나 통합하지 마세요.
             오직 <승인한 목록>에 있는 단어/문구만 그 자리에서 정확히 교체하고, 다른 어휘나 문장 논리는 절대 임의로 바꾸지 마세요.
             (단, 문체가 혼용된 경우에 한해 일관성 있게 마지막 맺음말을 자연스럽게 조정하세요.)
             완성된 글 텍스트만 출력하세요. 다른 설명은 덧붙이지 마세요.
@@ -448,9 +499,6 @@ if st.session_state.suggestions is not None:
             for s in selected_suggestions:
                 user_content += f"- '{s.get('original', '')}' -> '{s.get('correction', '')}'\n"
                 
-            from google import genai
-            from google.genai import types
-            
             try:
                 client = genai.Client(api_key=st.session_state.gemini_api_key)
                 apply_resp = client.models.generate_content(
