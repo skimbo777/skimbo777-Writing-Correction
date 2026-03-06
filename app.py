@@ -44,49 +44,45 @@ def inject_custom_css():
         .stDeployButton {display: none !important;}
         
         /* Ensure specific header area where toggle sidebar sits remains visible but background transparent */
-        header {background-color: transparent !important;}
+        header[data-testid="stHeader"] {
+            background-color: transparent !important;
+            background: transparent !important;
+        }
         
-        /* Sidebar Toggle Button (Arrow) - Always Visible, Custom Color, Larger Size */
-        [data-testid="collapsedControl"] {
+        /* Aggressively Force Sidebar Toggle Button to be Always Visible */
+        [data-testid="collapsedControl"], 
+        [data-testid="stSidebarCollapsedControl"] {
             display: flex !important;
             opacity: 1 !important;
             visibility: visible !important;
             color: #A89574 !important;
             background-color: transparent !important;
-            transform: scale(1.3) translate(5px, 5px) !important;
-            transition: color 0.2s, transform 0.2s !important;
+            transform: scale(1.5) translate(5px, 5px) !important;
+            transition: none !important;
             z-index: 999999 !important;
-            width: auto !important;
-            height: auto !important;
+            pointer-events: auto !important;
         }
-        [data-testid="collapsedControl"] svg {
+        [data-testid="collapsedControl"] svg,
+        [data-testid="stSidebarCollapsedControl"] svg {
             fill: #A89574 !important;
             color: #A89574 !important;
             width: 1.5rem !important;
             height: 1.5rem !important;
         }
-        [data-testid="collapsedControl"]:hover {
-            color: #8c7b5f !important;
-        }
-        [data-testid="collapsedControl"]:hover svg {
+        [data-testid="collapsedControl"]:hover *,
+        [data-testid="stSidebarCollapsedControl"]:hover * {
             fill: #8c7b5f !important;
             color: #8c7b5f !important;
         }
-        button[kind="header"] {
-            color: #A89574 !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            display: flex !important;
-        }
         
-        /* Override specifically streamlit's hover to hide interaction */
-        .st-emotion-cache-1avcm0n {
+        /* Override Streamlit's hover-to-show wrapper for header buttons */
+        header[data-testid="stHeader"] > div,
+        header[data-testid="stHeader"] .st-emotion-cache-1avcm0n, 
+        header[data-testid="stHeader"] .st-emotion-cache-15ecox0 {
             opacity: 1 !important;
             visibility: visible !important;
-        }
-        .st-emotion-cache-15ecox0 {
-            opacity: 1 !important;
-            visibility: visible !important;
+            pointer-events: auto !important;
+            display: flex !important;
         }
         
         /* Background Blobs Setup */
