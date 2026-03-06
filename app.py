@@ -208,15 +208,9 @@ with st.sidebar:
     if is_valid_key:
         st.markdown("""
             <div style="background-color: #eef7f0; padding: 20px; border-radius: 10px; border: 1px solid #d4ebd9; text-align: center; margin-bottom: 20px;">
-                <h3 style="color: #4a8b5b; margin-top: 0; font-family: 'Inter', sans-serif;">System Ready ✨</h3>
-                <p style="color: #5c996b; font-size: 0.9em; margin-bottom: 0;">✅ API 키가 인증되었습니다.<br>이제 글을 교정할 수 있습니다.</p>
+                <h3 style="color: #4a8b5b; margin-top: 0; margin-bottom: 0; font-family: 'Inter', sans-serif;">Status: Complete</h3>
             </div>
         """, unsafe_allow_html=True)
-        
-        if st.button("API 키 변경하기", key="reset_key_btn"):
-            st.session_state.gemini_api_key = ""
-            cookie_manager.delete("gemini_api_key")
-            st.rerun()
             
         # JS to remove focus from any element to prevent yellow outline
         st.components.v1.html("<script>Array.from(window.parent.document.querySelectorAll('input')).forEach(i => i.blur()); if(window.parent.document.activeElement) window.parent.document.activeElement.blur();</script>", height=0)
@@ -249,24 +243,24 @@ if "final_text" not in st.session_state:
 user_text = st.text_area("교정할 글을 입력해주세요:", height=300)
 
 SYSTEM_PROMPT = """
-당신은 '국립국어원 한글 맞춤법'과 다음 '서울광염교회 글쓰기 규정'을 완벽하게 숙지한 전문 교정가입니다.
+당신은 완벽한 전문 교정가입니다.
 
-[서울광염교회 주요 글쓰기 규정]
+[가장 중요한 원칙 - 문장 보존]
+**AI가 문장 전체를 새로 쓰거나 치환, 구조를 변경하는 것을 절대 금지합니다.** 사용자의 고유한 문체와 문장 구조를 100% 그대로 유지하는 것이 최우선입니다. 오류가 있는 부분만 최소한으로 단어 단위로 고치세요.
+
+[서울광염교회 주요 글쓰기 규정 ("type": "correction")]
 1. 존칭: '시', '께서' 등의 존칭 선어말 어미와 겸양어는 하나님, 예수님, 성령님께만 사용합니다. 사람에게는 쓰지 않습니다. (예: 목사님이 하셨습니다(X) -> 목사님이 했습니다(O)) 직분 뒤에만 '님'을 씁니다.
 2. 주어 생략/반복: 반복되는 주어는 생략을 원칙으로 하며, 부득이 반복할 경우 '이름'은 빼고 '성+직분'(예: 홍 목사)으로 쓰거나, 성별 무관하게 대명사 '그'를 씁니다. (그녀, 그분 사용 금지).
-3. 띄어쓰기: 숫자, 화폐 단위, 명수는 띄어쓰지 않고 모두 무조건 붙여 씁니다. (예: 3억원, 1만5천명, 1000만원대). 복합어(다음세대 등)도 붙여 씁니다.
-4. 문체: 한 글(또는 문단) 안에서 문장 종결 표현(해라체/하십시오체)이 혼용되지 않도록 일관성 있게 하나로 통일하여 교정하세요. 다수 쓰인 문체로 전체를 통일합니다.
+3. 띄어쓰기: 숫자, 화폐 단위, 명수는 띄어쓰지 않고 무조건 붙여 씁니다. (예: 3억원, 1만5천명).
+4. 문체: 한 글 안에서 해라체/하십시오체가 혼용되지 않도록 일관성 있게 하나로 통일.
+5. 호응 및 시제: 주어와 서술어 호응, 국어시제법 완벽 일치.
 
-[기본 문법 및 시제 규정]
-5. 문장 성분 호응: 주어, 목적어, 서술어가 논리적으로 명확하게 호응하는지 확인하고 교정하세요. (예: 내가 바라는 것은 네가 잘 되기를 바란다(X) -> 내가 바라는 것은 네가 잘 되는 것이다(O))
-6. 시제 일치 (국립국어원 원칙): 국어시제법과 국립국어원 원칙에 맞게 선어말어미(았/었/겠 등)와 관형사형 어미(ㄴ/는/ㄹ)를 사용하여 과거, 현재, 미래 등 문맥 구조에 맞게 완벽한 시제 조화(시제 일치)를 이루도록 교정하세요.
+[단어 단위 추천 - 문학적 어휘 제안 ("type": "suggestion")]
+문장에 쓰인 단어 중, 문맥상 더 아름다운 시적 표현이나 상황에 적합한 서정적/문학적 단어가 있다면 그 단어만 선별하여 리스트로 추천해 주세요. (예: 'original': '은혜가 큽니다', 'correction': '무궁합니다, 지극합니다'). 이런 문학적 어휘 제안은 "type": "suggestion" 으로 분류합니다.
 
-**가장 중요한 원칙**: 사용자가 쓴 원래의 글의 색채 및 뉘앙스는 절대로 임의로 바꾸지 않되, 문체(해라체/하십시오체)가 섞여 있다면 일관되게 통일하고, 맞춤법이나 규정에 어긋난 부분을 교정해야 합니다.
-
-사용자의 글을 분석하여 찾은 모든 오류를 반드시 아래의 순수 JSON 배열 형식으로만 반환하세요.
-형식: [{"original": "틀린부분", "correction": "수정제안", "reason": "이유(규정 명시)"}, ...]
-에러가 없으면 반드시 빈 배열 `[]`만 반환하세요.
-**[주의]** 절대로 설명, 요약, 앞뒤 인사말, 추가 텍스트를 붙이지 마세요. 오직 JSON 배열만 출력해야 프로그램이 에러 없이 작동합니다.
+사용자의 글을 분석하여 찾은 모든 오류 및 문학적 어휘 제안을 반드시 아래의 순수 JSON 배열 형식으로만 반환하세요.
+형식: [{"type": "correction" 또는 "suggestion", "original": "해당 단어나 문구", "correction": "수정제안 단어 또는 추천단어들", "reason": "교정 이유 또는 추천 사유"}, ...]
+에러나 제안이 없으면 반드시 빈 배열 `[]`만 반환하세요. 앞뒤 추가 설명 없이 오직 JSON 배열만 출력해야 합니다.
 """
 
 def analyze_text(text):
@@ -314,44 +308,57 @@ if st.button("분석하기", type="primary"):
                 st.session_state.suggestions = suggestions
                 
 if st.session_state.suggestions is not None:
+    corrections = [s for s in st.session_state.suggestions if s.get("type", "correction") != "suggestion"]
+    literary_suggestions = [s for s in st.session_state.suggestions if s.get("type") == "suggestion"]
+    
     st.markdown("### 🔍 교정 제안 (원하시는 교정 항목만 체크해주세요)")
     
-    if len(st.session_state.suggestions) == 0:
+    selected_suggestions = []
+    
+    if len(corrections) == 0:
         st.success("발견된 오류가 없습니다! 훌륭한 글입니다.")
     else:
-        selected_suggestions = []
-        for i, sug in enumerate(st.session_state.suggestions):
+        for i, sug in enumerate(corrections):
             label_text = f"**수정 전**: `{sug.get('original', '')}` ➡️ **수정 후**: `{sug.get('correction', '')}`  \n*(이유: {sug.get('reason', '')})*"
-            if sug.get('alternative'):
-                label_text += f"  \n💡 **추천 표현**: *{sug.get('alternative')}*"
             
             checked = st.checkbox(
                 label_text,
                 value=True,
-                key=f"chk_{i}"
+                key=f"chk_corr_{i}"
+            )
+            if checked:
+                selected_suggestions.append(sug)
+                
+    if len(literary_suggestions) > 0:
+        st.markdown("### ✨ 문학적 어휘 제안")
+        for i, sug in enumerate(literary_suggestions):
+            label_text = f"**{sug.get('original', '')}** 대신 💡 **{sug.get('correction', '')}**  \n*(추천 사유: {sug.get('reason', '')})*"
+            
+            checked = st.checkbox(
+                label_text,
+                value=False,
+                key=f"chk_sug_{i}"
             )
             if checked:
                 selected_suggestions.append(sug)
         
-        if st.button("선택한 교정사항 적용하여 완성하기", type="primary"):
-            if not selected_suggestions:
-                st.session_state.final_text = st.session_state.original_text
-            else:
-                with st.spinner("최종 글을 생성하고 있습니다..."):
-                    APPLY_PROMPT = """
-                    당신은 전문 교정가입니다. 
-                    사용자가 작성한 <원본 글>에 대하여 사용자가 <승인한 수정 및 추천 표현들> 목록을 제공합니다.
-                    당신은 이 승인된 내용만을 원본 글에 정확히 반영하여 <완성된 글>을 작성해야 합니다.
-                    **중요 원칙**: 승인되지 않은 변경 사항은 절대 임의로 적용하지 마세요. 사용자의 톤과 글의 다른 색채를 100% 그대로 유지해야 합니다.
-                    단, 문체(해라체/하십시오체)가 혼용된 경우, 전체 글의 문장이 일관되게 통일되도록 마지막 맺음말을 자연스럽게 조정하세요.
-                    오직 승인된 부분만 교체하고, 문체 통일 외의 문장은 절대 임의로 바꾸지 마세요.
-                    완성된 글 텍스트만 출력하세요. 다른 설명은 덧붙이지 마세요.
-                    """
-                    
-                    user_content = f"<원본 글>\n{st.session_state.original_text}\n\n<승인한 수정 및 추천 표현들>\n"
-                    for s in selected_suggestions:
-                        replacement = s.get('alternative') if s.get('alternative') else s.get('correction')
-                        user_content += f"- '{s.get('original', '')}' -> '{replacement}'\n"
+    if st.button("선택한 교정사항 적용하여 완성하기", type="primary"):
+        if not selected_suggestions:
+            st.session_state.final_text = st.session_state.original_text
+        else:
+            with st.spinner("최종 글을 생성하고 있습니다..."):
+                APPLY_PROMPT = """
+                당신은 전문 교정가입니다. 
+                사용자가 작성한 <원본 글>과 <승인한 수정 및 추천 표현들>을 제공받습니다.
+                **최우선 원칙**: AI가 문장 전체를 새로 쓰거나 구조를 변경하는 것을 절대 금지합니다. 사용자의 고유한 문체와 문장 구조를 100% 그대로 유지해야 합니다.
+                오직 <승인한 목록>에 있는 단어/문구만 그 자리에서 정확히 교체하고, 다른 어휘나 문장 논리는 절대 임의로 바꾸지 마세요.
+                (단, 문체가 혼용된 경우에 한해 일관성 있게 마지막 맺음말을 자연스럽게 조정하세요.)
+                완성된 글 텍스트만 출력하세요. 다른 설명은 덧붙이지 마세요.
+                """
+                
+                user_content = f"<원본 글>\n{st.session_state.original_text}\n\n<승인한 수정 및 추천 표현들>\n"
+                for s in selected_suggestions:
+                    user_content += f"- '{s.get('original', '')}' -> '{s.get('correction', '')}'\n"
                     
                     from google import genai
                     from google.genai import types
