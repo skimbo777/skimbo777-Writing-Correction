@@ -288,15 +288,51 @@ with st.sidebar:
                 
                 // Aggressive element hider
                 const cleanDOM = () => {
-                    // Find profile button specifically (usually inside viewerBadge or managed-app-badge or Deploy)
-                    const profileBtn = parent.querySelector('.viewerBadge_container, [id^="viewerBadge"], [data-testid="manage-app-button"], [data-testid="stViewerBadge"]');
+                    // Profile/Manage buttons and known class names
+                    const selectors = [
+                        '.viewerBadge_container', '[id*="viewerBadge"]', '[data-testid="manage-app-button"]', 
+                        '[data-testid="stViewerBadge"]', '[class*="viewerBadge"]', '#creatorBadge', 
+                        'a[href*="streamlit.io/cloud"]'
+                    ];
+                    
+                    const profileBtn = parent.querySelector(selectors.join(', '));
                     if (profileBtn) {
-                        // Hide it instead of removing so we can simulate a click on it
-                        profileBtn.style.setProperty("display", "none", "important");
-                        profileBtn.style.setProperty("visibility", "hidden", "important");
-                        profileBtn.style.setProperty("opacity", "0", "important");
                         window._streamlitProfileBtn = profileBtn; 
                     }
+
+                    const allCloudElements = parent.querySelectorAll(selectors.join(', '));
+                    allCloudElements.forEach(el => {
+                        el.style.setProperty("display", "none", "important");
+                        el.style.setProperty("visibility", "hidden", "important");
+                        el.style.setProperty("opacity", "0", "important");
+                        el.style.setProperty("pointer-events", "none", "important");
+                        
+                        // Hide parent container if it's a wrapper to prevent ghost spaces
+                        if(el.parentElement && el.parentElement.tagName === 'DIV' && el.parentElement !== parent.body) {
+                            el.parentElement.style.setProperty("display", "none", "important");
+                            el.parentElement.style.setProperty("opacity", "0", "important");
+                        }
+                    });
+                    
+                    // Brute force: hide ALL fixed divs in bottom right corner (typical for Streamlit Cloud overlays)
+                    const allDivs = parent.querySelectorAll('div');
+                    allDivs.forEach(div => {
+                        const style = window.getComputedStyle(div);
+                        if (style.position === 'fixed' || style.position === 'absolute') {
+                             const bottom = parseInt(style.bottom);
+                             const right = parseInt(style.right);
+                             const zIndex = parseInt(style.zIndex);
+                             if (!isNaN(bottom) && bottom <= 50 && !isNaN(right) && right <= 50 && !isNaN(zIndex) && zIndex > 10) {
+                                 div.style.setProperty("display", "none", "important");
+                                 div.style.setProperty("opacity", "0", "important");
+                                 div.style.setProperty("pointer-events", "none", "important");
+                                 // Save reference for proxy click if it's a clickable overlay container
+                                 if(!window._streamlitProfileBtn) {
+                                     window._streamlitProfileBtn = div.querySelector('button') || div.querySelector('a') || div;
+                                 }
+                             }
+                        }
+                    });
                     
                     // Top right action buttons (Fork, GitHub, Share)
                     const actionElems = parent.querySelectorAll('[data-testid="stActionElements"], .stActionButton, [data-testid="stAppDeployButton"], [data-testid="stToolbar"]');
@@ -313,13 +349,18 @@ with st.sidebar:
                 
                 // Bind profile click
                 const myProfile = document.getElementById("my-custom-profile");
-                if (myProfile) {
+                if (myProfile && !myProfile.dataset.bound) {
+                    myProfile.dataset.bound = "true";
                     myProfile.addEventListener("click", () => {
-                         let profileTarget = parent.querySelector('.viewerBadge_container, [id^="viewerBadge"], [data-testid="manage-app-button"], [data-testid="stViewerBadge"]');
-                         if (profileTarget) {
-                             // Some times the actual clickable is the child button
-                             const btn = profileTarget.querySelector('button') || profileTarget;
-                             btn.click();
+                         if (window._streamlitProfileBtn) {
+                             const btn = window._streamlitProfileBtn.querySelector('button') || 
+                                         window._streamlitProfileBtn.querySelector('a') || 
+                                         window._streamlitProfileBtn;
+                             if(btn && typeof btn.click === 'function') {
+                                 btn.click();
+                             } else {
+                                 alert("프로필 또는 클라우드 메뉴를 열 수 없습니다.");
+                             }
                          } else {
                              alert("클라우드 설정에 연결할 수 없습니다. Streamlit 커뮤니티 클라우드 환경에서만 동작합니다.");
                          }
