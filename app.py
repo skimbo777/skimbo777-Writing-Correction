@@ -372,13 +372,18 @@ def analyze_text(text):
         st.error(f"AI 분석 실패. API 키가 정확한지 확인하시거나 잠시 후 다시 시도해주세요. 에러: {e}")
         return None
 
-if st.button("분석하기", type="primary"):
+if st.button("교정하기", type="primary"):
     if not st.session_state.gemini_api_key.strip():
         st.warning("사이드바에 Gemini API Key를 입력해주세요.")
     elif not user_text.strip():
         st.warning("교정할 글을 입력해주세요.")
     else:
-        with st.spinner("교정된 글을 분석하고 있습니다... (5~15초 소요될 수 있습니다)"):
+        # Reset state upon new analysis
+        st.session_state.suggestions = None
+        st.session_state.final_text = ""
+        st.session_state.original_text = ""
+        
+        with st.spinner("교정된 글을 분석하고 있습니다... (5~15초 소요될 수 있습니다) <span class='custom-spinner-icon'></span>"):
             st.session_state.original_text = user_text
             suggestions = analyze_text(user_text)
             if suggestions is not None:
@@ -423,7 +428,7 @@ if st.session_state.suggestions is not None:
         if not selected_suggestions:
             st.session_state.final_text = st.session_state.original_text
         else:
-            with st.spinner("교정된 글을 생성하고 있습니다..."):
+            with st.spinner("교정된 글을 생성하고 있습니다... <span class='custom-spinner-icon'></span>"):
                 APPLY_PROMPT = """
                 당신은 전문 교정가입니다. 
                 사용자가 작성한 <원본 글>과 <승인한 수정 및 추천 표현들>을 제공받습니다.
