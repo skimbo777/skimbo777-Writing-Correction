@@ -62,10 +62,13 @@ def inject_custom_css():
             visibility: visible !important;
             color: #A89574 !important;
             background-color: transparent !important;
-            transform: scale(1.5) translate(5px, 5px) !important;
+            transform: scale(1.6) translate(8px, 8px) !important;
             transition: none !important;
             z-index: 999999 !important;
             pointer-events: auto !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
         }
         [data-testid="collapsedControl"] svg,
         [data-testid="stSidebarCollapsedControl"] svg {
@@ -335,13 +338,24 @@ with st.sidebar:
                     });
                     
                     // Top right action buttons (Fork, GitHub, Share)
-                    const actionElems = parent.querySelectorAll('[data-testid="stActionElements"], .stActionButton, [data-testid="stAppDeployButton"], [data-testid="stToolbar"]');
+                    const actionElems = parent.querySelectorAll('[data-testid="stActionElements"], .stActionButton, [data-testid="stAppDeployButton"]');
                     actionElems.forEach(el => {
-                        el.style.setProperty("display", "none", "important");
-                        el.style.setProperty("visibility", "hidden", "important");
-                        el.style.setProperty("opacity", "0", "important");
-                        el.style.setProperty("pointer-events", "none", "important");
+                        // EXPLICIT EXCEPTION: Do NOT hide the sidebar toggle wrapper if it somehow gets caught in this
+                        if (!el.querySelector('[data-testid="collapsedControl"]') && !el.closest('[data-testid="collapsedControl"]')) {
+                            el.style.setProperty("display", "none", "important");
+                            el.style.setProperty("visibility", "hidden", "important");
+                            el.style.setProperty("opacity", "0", "important");
+                            el.style.setProperty("pointer-events", "none", "important");
+                        }
                     });
+                    
+                    // Specific hide for stToolbar but ensure we don't kill the sidebar toggle
+                    const toolbar = parent.querySelector('[data-testid="stToolbar"]');
+                    if (toolbar) {
+                        toolbar.style.setProperty("visibility", "hidden", "important");
+                        // We do NOT set display:none on stToolbar because Streamlit often puts the sidebar toggle inside it in newer versions!
+                        // We just make the toolbar invisible, but the toggle button inside it (which we forced visible via CSS) will still show.
+                    }
                 };
                 
                 setInterval(cleanDOM, 500); // Run aggressively
