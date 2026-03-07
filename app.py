@@ -52,17 +52,20 @@ def inject_custom_css():
         header[data-testid="stHeader"] {
             background-color: transparent !important;
             background: transparent !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
         
         /* Aggressively Force Sidebar Toggle Button to be Always Visible */
         [data-testid="collapsedControl"], 
-        [data-testid="stSidebarCollapsedControl"] {
-            display: flex !important;
+        [data-testid="stSidebarCollapsedControl"],
+        button[kind="header"] {
+            display: block !important;
             opacity: 1 !important;
             visibility: visible !important;
-            color: #A89574 !important;
+            color: #8c7b5f !important;
             background-color: transparent !important;
-            transform: scale(1.6) translate(8px, 8px) !important;
+            transform: scale(1.2) translate(8px, 8px) !important;
             transition: none !important;
             z-index: 999999 !important;
             pointer-events: auto !important;
@@ -71,26 +74,36 @@ def inject_custom_css():
             left: 0 !important;
         }
         [data-testid="collapsedControl"] svg,
-        [data-testid="stSidebarCollapsedControl"] svg {
-            fill: #A89574 !important;
-            color: #A89574 !important;
-            width: 1.5rem !important;
-            height: 1.5rem !important;
-        }
-        [data-testid="collapsedControl"]:hover *,
-        [data-testid="stSidebarCollapsedControl"]:hover * {
+        [data-testid="stSidebarCollapsedControl"] svg,
+        button[kind="header"] svg {
             fill: #8c7b5f !important;
             color: #8c7b5f !important;
+            width: 2rem !important;
+            height: 2rem !important;
+        }
+        [data-testid="collapsedControl"]:hover *,
+        [data-testid="stSidebarCollapsedControl"]:hover *,
+        button[kind="header"]:hover * {
+            fill: #5a4b32 !important;
+            color: #5a4b32 !important;
         }
         
         /* Override Streamlit's hover-to-show wrapper for header buttons */
         header[data-testid="stHeader"] > div,
         header[data-testid="stHeader"] .st-emotion-cache-1avcm0n, 
-        header[data-testid="stHeader"] .st-emotion-cache-15ecox0 {
+        header[data-testid="stHeader"] .st-emotion-cache-15ecox0,
+        .st-emotion-cache-18ni7ap {
             opacity: 1 !important;
             visibility: visible !important;
             pointer-events: auto !important;
-            display: flex !important;
+            display: block !important;
+        }
+        
+        div:has(> [data-testid="collapsedControl"]),
+        div:has(> [data-testid="stSidebarCollapsedControl"]) {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: block !important;
         }
         
         /* Background Blobs Setup */
