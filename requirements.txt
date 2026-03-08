@@ -1,5 +1,5 @@
 streamlit
-google-genai
+google-generativeai
 pillow
 extra-streamlit-components==0.1.81
 

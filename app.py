@@ -3,8 +3,7 @@ import asyncio
 import json
 import extra_streamlit_components as stx
 import html
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 cookie_manager = stx.CookieManager(key="cookie_manager")
 
