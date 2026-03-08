@@ -769,54 +769,54 @@ if "original_text" not in st.session_state:
 if "final_text" not in st.session_state:
     st.session_state.final_text = ""
 
-# Main Text Input
 if "main_text_input" not in st.session_state:
     st.session_state.main_text_input = ""
-    
-user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
 
-# Shortcut script for Cmd/Ctrl + Enter
-st.components.v1.html("""
-    <script>
-        const parent = window.parent.document;
-        // Find textareas and bind
-        const bindShortcuts = () => {
-            const textareas = parent.querySelectorAll('textarea');
-            textareas.forEach(ta => {
-                if (!ta.dataset.shortcutBound) {
-                    ta.dataset.shortcutBound = "true";
-                    ta.addEventListener('keydown', function(e) {
-                        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                            e.preventDefault(); // prevent new line
-                            e.stopPropagation(); // prevent React from eating the event
-                            
-                            // Force Streamlit to sync the typed text by blurring
-                            ta.blur(); 
-                            
-                            setTimeout(() => {
-                                // Find '교정하기' button
-                                const buttons = Array.from(parent.querySelectorAll('button'));
-                                const correctBtn = buttons.find(b => b.textContent && b.textContent.includes('교정하기'));
-                                if (correctBtn && !correctBtn.disabled) {
-                                    correctBtn.click();
-                                }
-                            }, 300); // 300ms is safe enough for Streamlit to sync text
-                            
-                            // Return focus after click
-                            setTimeout(() => {
-                                ta.focus();
-                            }, 600);
-                        }
-                    }, { capture: true }); // Use capture phase to intercept before Streamlit binds
-                }
-            });
-        };
-        // Retry a few times in case the DOM isn't fully ready
-        setTimeout(bindShortcuts, 500);
-        setTimeout(bindShortcuts, 1500);
-        setInterval(bindShortcuts, 3000);
-    </script>
-""", height=0)
+if st.session_state.suggestions is None:
+    user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
+
+    # Shortcut script for Cmd/Ctrl + Enter
+    st.components.v1.html("""
+        <script>
+            const parent = window.parent.document;
+            // Find textareas and bind
+            const bindShortcuts = () => {
+                const textareas = parent.querySelectorAll('textarea');
+                textareas.forEach(ta => {
+                    if (!ta.dataset.shortcutBound) {
+                        ta.dataset.shortcutBound = "true";
+                        ta.addEventListener('keydown', function(e) {
+                            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                                e.preventDefault(); // prevent new line
+                                e.stopPropagation(); // prevent React from eating the event
+                                
+                                // Force Streamlit to sync the typed text by blurring
+                                ta.blur(); 
+                                
+                                setTimeout(() => {
+                                    // Find '교정하기' button
+                                    const buttons = Array.from(parent.querySelectorAll('button'));
+                                    const correctBtn = buttons.find(b => b.textContent && b.textContent.includes('교정하기'));
+                                    if (correctBtn && !correctBtn.disabled) {
+                                        correctBtn.click();
+                                    }
+                                }, 300); // 300ms is safe enough for Streamlit to sync text
+                                
+                                // Return focus after click
+                                setTimeout(() => {
+                                    ta.focus();
+                                }, 600);
+                            }
+                        }, { capture: true }); // Use capture phase to intercept before Streamlit binds
+                    }
+                });
+            };
+            // Retry a few times in case the DOM isn't fully ready
+            setTimeout(bindShortcuts, 500);
+            setTimeout(bindShortcuts, 1500);
+            setInterval(bindShortcuts, 3000);
+        </script>
+    """, height=0)
 
 SYSTEM_PROMPT = """
 당신은 완벽한 전문 교정가입니다.
@@ -906,9 +906,10 @@ if "do_analyze" not in st.session_state:
 def trigger_analysis():
     st.session_state.do_analyze = True
 
-col_btn, _ = st.columns([2, 8])
-with col_btn:
-    st.button("교정하기", type="primary", on_click=trigger_analysis, use_container_width=True)
+if st.session_state.suggestions is None:
+    col_btn, _ = st.columns([2, 8])
+    with col_btn:
+        st.button("교정하기", type="primary", on_click=trigger_analysis, use_container_width=True)
 
 if st.session_state.do_analyze:
     st.session_state.do_analyze = False # Reset immediately
@@ -1170,9 +1171,9 @@ if st.session_state.suggestions is not None:
     
     col_reset, col_apply = st.columns([3, 7])
     with col_reset:
-        if st.button("새로운 글 작성하기 (초기화)"):
+        if st.button("돌아가기 (계속 편집)"):
+            st.session_state.main_text_input = st.session_state.original_text
             st.session_state.suggestions = None
-            st.session_state.original_text = ""
             st.session_state.final_text = ""
             st.rerun()
             
