@@ -785,7 +785,7 @@ loading_placeholder_top = st.empty()
 
 if st.session_state.suggestions is None:
     if st.session_state.show_success:
-        st.success("✨ 교정이 완료되어 아래 텍스트 창에 완성본이 반영되었습니다!")
+        st.markdown('<div class="custom-desc" style="text-align: center; padding: 1rem; border-radius: 0.5rem; background-color: rgba(74, 139, 91, 0.1); color: #2b5937; margin-bottom: 1rem; border: 1px solid rgba(74, 139, 91, 0.2);">✨ 교정이 완료되어 아래 텍스트 창에 완성본이 반영되었습니다!</div>', unsafe_allow_html=True)
         st.toast("교정이 완료되었습니다!", icon="🎉")
         st.session_state.show_success = False
         
