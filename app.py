@@ -845,16 +845,15 @@ def analyze_text(text):
         return None
 
     try:
-        client = genai.Client(api_key=api_key_to_use)
-        response = client.models.generate_content(
-            model='gemini-1.5-flash-latest',
-            contents=text,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
+        genai.configure(api_key=api_key_to_use)
+        model = genai.GenerativeModel('gemini-1.5-flash',
+            system_instruction=SYSTEM_PROMPT,
+            generation_config=genai.GenerationConfig(
                 temperature=0.0,
                 response_mime_type="application/json",
-            ),
+            )
         )
+        response = model.generate_content(text)
         content = response.text.strip()
         
         start_idx = content.find('[')
@@ -870,7 +869,7 @@ def analyze_text(text):
         if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
             st.error("❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요.")
         else:
-            st.error("❌ 시스템 연결을 재설정 중입니다. 잠시 후 다시 시도해주세요.")
+            st.error("❌ 서버 연결 설정 중입니다. 10초 후 다시 시도해주세요.")
         return None
 
 if "do_analyze" not in st.session_state:
@@ -1055,22 +1054,21 @@ if st.session_state.suggestions is not None:
                     except FileNotFoundError:
                         pass
                 
-                client = genai.Client(api_key=api_key_to_use)
-                apply_resp = client.models.generate_content(
-                    model='gemini-1.5-flash-latest',
-                    contents=user_content,
-                    config=types.GenerateContentConfig(
-                        system_instruction=APPLY_PROMPT,
-                        temperature=0.0
+                genai.configure(api_key=api_key_to_use)
+                model = genai.GenerativeModel('gemini-1.5-flash',
+                    system_instruction=APPLY_PROMPT,
+                    generation_config=genai.GenerationConfig(
+                        temperature=0.0,
                     )
                 )
+                apply_resp = model.generate_content(user_content)
                 st.session_state.final_text = apply_resp.text.strip()
             except Exception as e:
                 error_msg = str(e).lower()
                 if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
                     st.session_state.final_text = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 완성하기 버튼을 눌러주세요."
                 else:
-                    st.session_state.final_text = "❌ 시스템 연결을 재설정 중입니다. 잠시 후 다시 시도해주세요."
+                    st.session_state.final_text = "❌ 서버 연결 설정 중입니다. 10초 후 다시 시도해주세요."
                 
             loading_placeholder2.empty()
 
