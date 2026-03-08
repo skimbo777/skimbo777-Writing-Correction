@@ -847,7 +847,7 @@ def analyze_text(text):
     try:
         client = genai.Client(api_key=api_key_to_use)
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-1.5-flash-latest',
             contents=text,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
@@ -870,7 +870,7 @@ def analyze_text(text):
         if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
             st.error("❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요.")
         else:
-            st.error(f"AI 분석 실패. API 키가 정확한지 확인하시거나 잠시 후 다시 시도해주세요. 에러: {e}")
+            st.error("❌ 시스템 연결을 재설정 중입니다. 잠시 후 다시 시도해주세요.")
         return None
 
 if "do_analyze" not in st.session_state:
@@ -1057,7 +1057,7 @@ if st.session_state.suggestions is not None:
                 
                 client = genai.Client(api_key=api_key_to_use)
                 apply_resp = client.models.generate_content(
-                    model='gemini-1.5-flash',
+                    model='gemini-1.5-flash-latest',
                     contents=user_content,
                     config=types.GenerateContentConfig(
                         system_instruction=APPLY_PROMPT,
@@ -1070,7 +1070,7 @@ if st.session_state.suggestions is not None:
                 if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
                     st.session_state.final_text = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 완성하기 버튼을 눌러주세요."
                 else:
-                    st.session_state.final_text = f"글 생성에 실패했습니다. API 키 오류 또는 서버 문제일 수 있습니다. 에러: {e}"
+                    st.session_state.final_text = "❌ 시스템 연결을 재설정 중입니다. 잠시 후 다시 시도해주세요."
                 
             loading_placeholder2.empty()
 
