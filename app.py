@@ -833,27 +833,27 @@ SYSTEM_PROMPT = """
 """
 
 def analyze_text(text):
+    if not st.session_state.get("authenticated", False):
+        st.warning("❌ 우측 상단에서 인증을 먼저 완료해주세요.")
+        return None
+
     api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("api_key_widget_main") or st.session_state.get("gemini_api_key")
-    if api_key_to_use == MASTER_KEY:
+    if api_key_to_use == MASTER_KEY or st.session_state.get("is_admin", False):
         try:
             api_key_to_use = st.secrets.get("GEMINI_API_KEY", "")
         except FileNotFoundError:
             pass
 
-    if not api_key_to_use or not api_key_to_use.startswith("AIza"):
+    if not api_key_to_use:
         st.error("❌ 유효한 Gemini API 키가 없습니다. 우측 상단에 올바른 키를 입력해주세요.")
         return None
 
     try:
         genai.configure(api_key=api_key_to_use)
-        model = genai.GenerativeModel('gemini-1.5-flash',
-            system_instruction=SYSTEM_PROMPT,
-            generation_config=genai.GenerationConfig(
-                temperature=0.0,
-                response_mime_type="application/json",
-            )
-        )
-        response = model.generate_content(text)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
+        response = model.generate_content(prompt)
         content = response.text.strip()
         
         start_idx = content.find('[')
@@ -1048,20 +1048,17 @@ if st.session_state.suggestions is not None:
                 
             try:
                 api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("api_key_widget_main") or st.session_state.get("gemini_api_key")
-                if api_key_to_use == MASTER_KEY:
+                if api_key_to_use == MASTER_KEY or st.session_state.get("is_admin", False):
                     try:
                         api_key_to_use = st.secrets.get("GEMINI_API_KEY", "")
                     except FileNotFoundError:
                         pass
                 
                 genai.configure(api_key=api_key_to_use)
-                model = genai.GenerativeModel('gemini-1.5-flash',
-                    system_instruction=APPLY_PROMPT,
-                    generation_config=genai.GenerationConfig(
-                        temperature=0.0,
-                    )
-                )
-                apply_resp = model.generate_content(user_content)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                prompt = f"{APPLY_PROMPT}\n\n{user_content}"
+                apply_resp = model.generate_content(prompt)
                 st.session_state.final_text = apply_resp.text.strip()
             except Exception as e:
                 error_msg = str(e).lower()
