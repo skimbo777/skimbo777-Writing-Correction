@@ -867,8 +867,8 @@ def analyze_text(text):
             raise ValueError("Invalid JSON format from Gemini.")
     except Exception as e:
         error_msg = str(e).lower()
-        if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg:
-            st.error("❌ 현재 사용량이 많아 잠시 후 다시 시도해주세요.")
+        if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
+            st.error("❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요.")
         else:
             st.error(f"AI 분석 실패. API 키가 정확한지 확인하시거나 잠시 후 다시 시도해주세요. 에러: {e}")
         return None
@@ -890,6 +890,8 @@ if st.session_state.do_analyze:
     user_text_val = st.session_state.get("main_text_input", "") 
     if not user_text_val.strip():
         st.warning("교정할 글을 입력해주세요.")
+    elif len(user_text_val) > 3000:
+        st.warning(f"⚠️ 한 번에 교정할 수 있는 글자 수를 초과했습니다. (현재 {len(user_text_val)}자 / 최대 권장 3,000자). 글을 나누어 교정해주세요.")
     else:
         # Reset state upon new analysis
         st.session_state.suggestions = None
@@ -1065,8 +1067,8 @@ if st.session_state.suggestions is not None:
                 st.session_state.final_text = apply_resp.text.strip()
             except Exception as e:
                 error_msg = str(e).lower()
-                if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg:
-                    st.session_state.final_text = "❌ 현재 사용량이 많아 잠시 후 다시 시도해주세요."
+                if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
+                    st.session_state.final_text = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 완성하기 버튼을 눌러주세요."
                 else:
                     st.session_state.final_text = f"글 생성에 실패했습니다. API 키 오류 또는 서버 문제일 수 있습니다. 에러: {e}"
                 
