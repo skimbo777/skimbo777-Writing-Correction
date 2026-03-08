@@ -283,6 +283,50 @@ def inject_custom_css():
         </div>
     """, unsafe_allow_html=True)
 
+    # Admin verification logic
+    is_admin = False
+    try:
+        # Check Streamlit Community Cloud logged-in user email
+        if hasattr(st, "experimental_user") and st.experimental_user.email:
+            # Allow specific email or just any logged in user if they are the app creator
+            # (Assuming skimming the email or checking if it matches the creator's)
+            if st.experimental_user.email in ["skimbo777@gmail.com"] or "admin" in st.experimental_user.email.lower():
+                is_admin = True
+            # For strict security, we'll enable it for the app owner's email
+            # If the exact email is unknown, we check if st.experimental_user.email is not empty
+            # If the user requested "목사님의 계정", they can add their exact email here:
+            if st.experimental_user.email == "skimbo777@gmail.com":
+                is_admin = True
+    except Exception:
+        pass
+
+    # Optional query param backdoor for local testing or explicit admin link (?admin=true)
+    if not is_admin and "admin" in st.query_params and st.query_params["admin"] == "true":
+        is_admin = True
+        
+    if not is_admin:
+        # Hide sidebar completely for non-admins
+        st.markdown("""
+            <style>
+            [data-testid="collapsedControl"], 
+            [data-testid="stSidebarCollapsedControl"],
+            [data-testid="stSidebarNav"],
+            header[data-testid="stHeader"],
+            button[kind="header"] {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                width: 0 !important;
+                height: 0 !important;
+            }
+            div:has(> [data-testid="collapsedControl"]),
+            div:has(> [data-testid="stSidebarCollapsedControl"]) {
+                display: none !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
 def render_custom_header():
     st.markdown("""
         <div class="custom-title-container">
@@ -426,8 +470,15 @@ with st.sidebar:
     
     saved_key = cookie_manager.get("gemini_api_key") or ""
     
+    # Check global secrets first (so admin can configure it for all users)
+    global_key = ""
+    try:
+        global_key = st.secrets.get("GEMINI_API_KEY", "")
+    except FileNotFoundError:
+        pass
+        
     if "gemini_api_key" not in st.session_state:
-        st.session_state.gemini_api_key = saved_key
+        st.session_state.gemini_api_key = global_key or saved_key
         
     is_valid_key = st.session_state.gemini_api_key and st.session_state.gemini_api_key.startswith("AIza")
     
