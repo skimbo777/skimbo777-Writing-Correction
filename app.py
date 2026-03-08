@@ -786,12 +786,16 @@ st.components.v1.html("""
                     ta.addEventListener('keydown', function(e) {
                         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                             e.preventDefault(); // prevent new line
-                            // Find '교정하기' button
-                            const buttons = Array.from(parent.querySelectorAll('button'));
-                            const correctBtn = buttons.find(b => b.innerText && b.innerText.includes('교정하기'));
-                            if (correctBtn) {
-                                correctBtn.click();
-                            }
+                            e.target.blur(); // Force Streamlit to sync the typed text
+                            
+                            setTimeout(() => {
+                                // Find '교정하기' button
+                                const buttons = Array.from(parent.querySelectorAll('button'));
+                                const correctBtn = buttons.find(b => b.textContent && b.textContent.includes('교정하기'));
+                                if (correctBtn) {
+                                    correctBtn.click();
+                                }
+                            }, 150);
                         }
                     });
                 }
@@ -826,11 +830,12 @@ SYSTEM_PROMPT = """
 """
 
 def analyze_text(text):
-    if not st.session_state.gemini_api_key:
+    api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("gemini_api_key")
+    if not api_key_to_use:
         return None
 
     try:
-        client = genai.Client(api_key=st.session_state.gemini_api_key)
+        client = genai.Client(api_key=api_key_to_use)
         response = client.models.generate_content(
             model='gemini-2.0-flash',
             contents=text,
@@ -856,7 +861,7 @@ def analyze_text(text):
 
 if st.button("교정하기", type="primary"):
     if not st.session_state.get("authenticated", False):
-        pass
+        st.warning("우측 상단에서 API 키를 인증해주세요.")
     elif not user_text.strip():
         st.warning("교정할 글을 입력해주세요.")
     else:
@@ -1014,7 +1019,8 @@ if st.session_state.suggestions is not None:
                 user_content += f"- '{s.get('original', '')}' -> '{s.get('correction', '')}'\n"
                 
             try:
-                client = genai.Client(api_key=st.session_state.gemini_api_key)
+                api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("gemini_api_key")
+                client = genai.Client(api_key=api_key_to_use)
                 apply_resp = client.models.generate_content(
                     model='gemini-2.0-flash',
                     contents=user_content,
