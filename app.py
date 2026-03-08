@@ -847,7 +847,7 @@ def analyze_text(text):
     try:
         client = genai.Client(api_key=api_key_to_use)
         response = client.models.generate_content(
-            model='gemini-2.0-flash',
+            model='gemini-1.5-flash',
             contents=text,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
@@ -866,7 +866,11 @@ def analyze_text(text):
         else:
             raise ValueError("Invalid JSON format from Gemini.")
     except Exception as e:
-        st.error(f"AI 분석 실패. API 키가 정확한지 확인하시거나 잠시 후 다시 시도해주세요. 에러: {e}")
+        error_msg = str(e).lower()
+        if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg:
+            st.error("❌ 현재 사용량이 많아 잠시 후 다시 시도해주세요.")
+        else:
+            st.error(f"AI 분석 실패. API 키가 정확한지 확인하시거나 잠시 후 다시 시도해주세요. 에러: {e}")
         return None
 
 if "do_analyze" not in st.session_state:
@@ -1051,7 +1055,7 @@ if st.session_state.suggestions is not None:
                 
                 client = genai.Client(api_key=api_key_to_use)
                 apply_resp = client.models.generate_content(
-                    model='gemini-2.0-flash',
+                    model='gemini-1.5-flash',
                     contents=user_content,
                     config=types.GenerateContentConfig(
                         system_instruction=APPLY_PROMPT,
@@ -1060,7 +1064,11 @@ if st.session_state.suggestions is not None:
                 )
                 st.session_state.final_text = apply_resp.text.strip()
             except Exception as e:
-                st.session_state.final_text = f"글 생성에 실패했습니다. API 키 오류 또는 서버 문제일 수 있습니다. 에러: {e}"
+                error_msg = str(e).lower()
+                if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg:
+                    st.session_state.final_text = "❌ 현재 사용량이 많아 잠시 후 다시 시도해주세요."
+                else:
+                    st.session_state.final_text = f"글 생성에 실패했습니다. API 키 오류 또는 서버 문제일 수 있습니다. 에러: {e}"
                 
             loading_placeholder2.empty()
 
