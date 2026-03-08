@@ -64,7 +64,6 @@ def inject_custom_css():
         /* Aggressively Force Sidebar Toggle Button to be Always Visible */
         [data-testid="collapsedControl"], 
         [data-testid="stSidebarCollapsedControl"],
-        [data-testid="stSidebarNav"],
         button[kind="header"] {
             display: block !important;
             opacity: 1 !important;
@@ -85,7 +84,6 @@ def inject_custom_css():
         }
         [data-testid="collapsedControl"] svg,
         [data-testid="stSidebarCollapsedControl"] svg,
-        [data-testid="stSidebarNav"] svg,
         button[kind="header"] svg {
             fill: #8c7b5f !important;
             color: #8c7b5f !important;
@@ -97,10 +95,18 @@ def inject_custom_css():
         }
         [data-testid="collapsedControl"]:hover *,
         [data-testid="stSidebarCollapsedControl"]:hover *,
-        [data-testid="stSidebarNav"]:hover *,
         button[kind="header"]:hover * {
             fill: #5a4b32 !important;
             color: #5a4b32 !important;
+        }
+        
+        /* Hide Default Sidebar Navigation Menu (app, main pages) */
+        [data-testid="stSidebarNav"] {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         
         /* Override Streamlit's hover-to-show wrapper for header buttons */
@@ -115,8 +121,7 @@ def inject_custom_css():
         }
         
         div:has(> [data-testid="collapsedControl"]),
-        div:has(> [data-testid="stSidebarCollapsedControl"]),
-        div:has(> [data-testid="stSidebarNav"]) {
+        div:has(> [data-testid="stSidebarCollapsedControl"]) {
             opacity: 1 !important;
             visibility: visible !important;
             display: block !important;
@@ -306,7 +311,7 @@ render_custom_header()
 # Sidebar for Gemini API Key
 with st.sidebar:
     st.markdown("""
-        <div id="my-custom-profile" style="display: flex; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(168, 149, 116, 0.2); cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+        <div id="my-custom-profile" style="margin-top: 3rem; display: flex; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(168, 149, 116, 0.2); cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
             <div style="width: 36px; height: 36px; border-radius: 50%; background-color: #A89574; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
