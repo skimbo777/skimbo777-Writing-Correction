@@ -586,22 +586,44 @@ with st.sidebar:
         st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 여기서 무료 키를 발급받으세요 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
         api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...", key="api_key_widget")
         
-        # JS to retrieve from local storage on initial load
+        # JS to retrieve from local storage on initial load and handle 'Enter' key login style
         st.components.v1.html("""
             <script>
-                const savedKey = window.localStorage.getItem('gemini_api_key_local');
                 const p = window.parent;
-                if (savedKey && savedKey.startsWith('AIza')) {
-                    const inputs = p.document.querySelectorAll('input[type="password"]');
-                    for (let input of inputs) {
-                        if (!input.value) {
-                            // We need to simulate React events to actually trigger a change in Streamlit
-                            let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                            nativeInputValueSetter.call(input, savedKey);
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            // Fake enter keypress
-                            input.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Enter'}));
-                        }
+                const savedKey = window.localStorage.getItem('gemini_api_key_local');
+                
+                const inputs = p.document.querySelectorAll('input[type="password"]');
+                for (let input of inputs) {
+                    // 1. Auto-fill from localStorage if available and empty
+                    if (savedKey && savedKey.startsWith('AIza') && !input.value) {
+                        let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                        nativeInputValueSetter.call(input, savedKey);
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        
+                        // Force a tiny delay then trigger Enter to submit instantly
+                        setTimeout(() => {
+                            input.dispatchEvent(new KeyboardEvent('keydown', {
+                                key: 'Enter',
+                                code: 'Enter',
+                                keyCode: 13,
+                                which: 13,
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }, 100);
+                    }
+                    
+                    // 2. Add Enter key listener for manual entry
+                    if (!input.dataset.enterBound) {
+                        input.dataset.enterBound = "true";
+                        input.addEventListener('keydown', function(event) {
+                            if (event.key === 'Enter') {
+                                // Save to localStorage on Enter
+                                if (this.value && this.value.startsWith('AIza')) {
+                                    window.localStorage.setItem('gemini_api_key_local', this.value);
+                                }
+                            }
+                        });
                     }
                 }
             </script>
