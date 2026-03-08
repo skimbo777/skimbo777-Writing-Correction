@@ -352,143 +352,58 @@ def render_custom_header():
 inject_custom_css()
 render_custom_header()
 
-# Sidebar for Gemini API Key
-with st.sidebar:
-    st.markdown("""
-        <div id="my-custom-profile" style="margin-top: 3rem; display: flex; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(168, 149, 116, 0.2); cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
-            <div style="width: 36px; height: 36px; border-radius: 50%; background-color: #A89574; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-            <div style="color: #A89574; font-weight: 600; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 1.05rem;">My Profile</div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.components.v1.html("""
-        <script>
-            const initCloudCleaner = () => {
-                const parent = window.parent.document;
-                
-                // Aggressive element hider
-                const cleanDOM = () => {
-                    // Profile/Manage buttons and known class names
-                    const selectors = [
-                        '.viewerBadge_container', '[id*="viewerBadge"]', '[data-testid="manage-app-button"]', 
-                        '[data-testid="stViewerBadge"]', '[class*="viewerBadge"]', '#creatorBadge', 
-                        'a[href*="streamlit.io/cloud"]'
-                    ];
-                    
-                    const profileBtn = parent.querySelector(selectors.join(', '));
-                    if (profileBtn) {
-                        window._streamlitProfileBtn = profileBtn; 
-                    }
+# ==========================================
+# Main Header & Auth Area
+# ==========================================
 
-                    const allCloudElements = parent.querySelectorAll(selectors.join(', '));
-                    allCloudElements.forEach(el => {
-                        el.style.setProperty("display", "none", "important");
-                        el.style.setProperty("visibility", "hidden", "important");
-                        el.style.setProperty("opacity", "0", "important");
-                        el.style.setProperty("pointer-events", "none", "important");
-                        
-                        // Hide parent container if it's a wrapper to prevent ghost spaces
-                        if(el.parentElement && el.parentElement.tagName === 'DIV' && el.parentElement !== parent.body) {
-                            el.parentElement.style.setProperty("display", "none", "important");
-                            el.parentElement.style.setProperty("opacity", "0", "important");
-                        }
-                    });
-                    
-                    // Brute force: hide ALL fixed divs in bottom right corner (typical for Streamlit Cloud overlays)
-                    const allDivs = parent.querySelectorAll('div');
-                    allDivs.forEach(div => {
-                        const style = window.getComputedStyle(div);
-                        if (style.position === 'fixed' || style.position === 'absolute') {
-                             const bottom = parseInt(style.bottom);
-                             const right = parseInt(style.right);
-                             const zIndex = parseInt(style.zIndex);
-                             if (!isNaN(bottom) && bottom <= 50 && !isNaN(right) && right <= 50 && !isNaN(zIndex) && zIndex > 10) {
-                                 div.style.setProperty("display", "none", "important");
-                                 div.style.setProperty("opacity", "0", "important");
-                                 div.style.setProperty("pointer-events", "none", "important");
-                                 // Save reference for proxy click if it's a clickable overlay container
-                                 if(!window._streamlitProfileBtn) {
-                                     window._streamlitProfileBtn = div.querySelector('button') || div.querySelector('a') || div;
-                                 }
-                             }
-                        }
-                    });
-                    
-                    // Top right action buttons (Fork, GitHub, Share)
-                    const actionElems = parent.querySelectorAll('[data-testid="stActionElements"], .stActionButton, [data-testid="stAppDeployButton"]');
-                    actionElems.forEach(el => {
-                        // EXPLICIT EXCEPTION: Do NOT hide the sidebar toggle wrapper if it somehow gets caught in this
-                        if (!el.querySelector('[data-testid="collapsedControl"]') && !el.closest('[data-testid="collapsedControl"]')) {
-                            el.style.setProperty("display", "none", "important");
-                            el.style.setProperty("visibility", "hidden", "important");
-                            el.style.setProperty("opacity", "0", "important");
-                            el.style.setProperty("pointer-events", "none", "important");
-                        }
-                    });
-                    
-                    // Specific hide for stToolbar but ensure we don't kill the sidebar toggle
-                    const toolbar = parent.querySelector('[data-testid="stToolbar"]');
-                    if (toolbar) {
-                        toolbar.style.setProperty("visibility", "hidden", "important");
-                        // We do NOT set display:none on stToolbar because Streamlit often puts the sidebar toggle inside it in newer versions!
-                        // We just make the toolbar invisible, but the toggle button inside it (which we forced visible via CSS) will still show.
-                    }
-                };
-                
-                setInterval(cleanDOM, 500); // Run aggressively
-                cleanDOM();
-                
-                // Bind profile click
-                const myProfile = document.getElementById("my-custom-profile");
-                if (myProfile && !myProfile.dataset.bound) {
-                    myProfile.dataset.bound = "true";
-                    myProfile.addEventListener("click", () => {
-                         if (window._streamlitProfileBtn) {
-                             const btn = window._streamlitProfileBtn.querySelector('button') || 
-                                         window._streamlitProfileBtn.querySelector('a') || 
-                                         window._streamlitProfileBtn;
-                             if(btn && typeof btn.click === 'function') {
-                                 btn.click();
-                             } else {
-                                 alert("프로필 또는 클라우드 메뉴를 열 수 없습니다.");
-                             }
-                         } else {
-                             alert("클라우드 설정에 연결할 수 없습니다. Streamlit 커뮤니티 클라우드 환경에서만 동작합니다.");
-                         }
-                    });
-                }
-            };
-            // Wait for parent DOM
-            if(document.readyState === 'complete') initCloudCleaner();
-            else window.addEventListener('load', initCloudCleaner);
-        </script>
-    """, height=0)
+# Top Right Auth UI Container
+st.markdown("""
+    <style>
+    .top-right-auth {
+        position: absolute;
+        top: 1rem;
+        right: 1.5rem;
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
     
-    st.markdown("### ⚙️ Settings")
-    
-    saved_key = cookie_manager.get("gemini_api_key") or ""
-    
-    # Check global secrets first (so admin can configure it for all users)
-    global_key = ""
-    try:
-        global_key = st.secrets.get("GEMINI_API_KEY", "")
-    except FileNotFoundError:
-        pass
-        
-    if "gemini_api_key" not in st.session_state:
-        st.session_state.gemini_api_key = global_key or saved_key
-        
-    is_valid_key = st.session_state.gemini_api_key and st.session_state.gemini_api_key.startswith("AIza")
-    
+    /* Make Streamlit's container for the auth elements transparent and right-aligned */
+    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > div:first-child {
+        float: right;
+        display: flex;
+        justify-content: flex-end;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Authentication State
+saved_key = cookie_manager.get("gemini_api_key") or ""
+global_key = ""
+try:
+    global_key = st.secrets.get("GEMINI_API_KEY", "")
+except FileNotFoundError:
+    pass
+
+if "gemini_api_key" not in st.session_state:
+    st.session_state.gemini_api_key = global_key or saved_key
+
+is_valid_key = st.session_state.gemini_api_key and st.session_state.gemini_api_key.startswith("AIza")
+
+# Render Auth UI in main flow but styled to float top right via CSS injector
+auth_placeholder = st.empty()
+with auth_placeholder.container():
+    st.markdown('<div class="top-right-auth">', unsafe_allow_html=True)
     if is_valid_key:
         st.markdown("""
-            <div style="background-color: #eef7f0; padding: 20px; border-radius: 10px; border: 1px solid #d4ebd9; text-align: center; margin-bottom: 20px;">
-                <h3 style="color: #4a8b5b; margin-top: 0; margin-bottom: 0; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 1.25rem;">API키 인증: Complete</h3>
+            <div style="display: flex; align-items: center; background-color: rgba(238, 247, 240, 0.9); padding: 8px 16px; border-radius: 20px; border: 1px solid #d4ebd9; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                <div style="width: 24px; height: 24px; border-radius: 50%; background-color: #A89574; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <span style="color: #4a8b5b; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.95rem; font-weight: 600;">인증 완료</span>
             </div>
         """, unsafe_allow_html=True)
-            
         # JS to remove focus from any element to prevent yellow outline, and check if we should prompt to save
         st.components.v1.html("""
             <script>
@@ -500,93 +415,22 @@ with st.sidebar:
                 const currentKey = '""" + st.session_state.gemini_api_key + """';
                 const savedKey = window.localStorage.getItem('gemini_api_key_local');
                 if (currentKey && currentKey !== savedKey) {
-                    // Slight delay to ensure React/Streamlit renders the Complete UI first
                     setTimeout(() => {
-                        if (window.confirm("이 API 키를 저장할까요?")) {
+                        if (window.confirm("이 API 키를 브라우저에 기억할까요?")) {
                             window.localStorage.setItem('gemini_api_key_local', currentKey);
-                        } else {
-                            // If they say no, make sure we don't ask again for this specific key during this session
                         }
                     }, 500);
                 }
             </script>
         """, height=0)
-        
-        st.markdown("---")
-        st.markdown("<h3 style='margin-bottom: 15px; color: #A89574;'>Menu</h3>", unsafe_allow_html=True)
-        st.markdown("""
-        <style>
-        .custom-sidebar-link {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            color: #A89574 !important; /* Logo matching beige color */
-            text-decoration: none;
-            font-weight: 500;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            transition: all 0.2s;
-            font-family: 'Pretendard Variable', Pretendard, sans-serif;
-            font-size: 0.95rem;
-        }
-        .custom-sidebar-link:hover {
-            background-color: rgba(168, 149, 116, 0.1);
-            text-decoration: none;
-        }
-        .custom-sidebar-icon {
-            margin-right: 12px;
-            width: 18px;
-            height: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .custom-sidebar-icon svg {
-            width: 100%;
-            height: 100%;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            fill: none;
-        }
-        </style>
-        <a href="#" onclick="navigator.clipboard.writeText(window.location.href); alert('현재 앱의 URL이 복사되었습니다!'); return false;" class="custom-sidebar-link">
-            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
-            Share
-        </a>
-        <a href="https://github.com/skimbo777/skimbo777-Writing-Correction/stargazers" target="_blank" class="custom-sidebar-link">
-            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
-            Star
-        </a>
-        <a href="https://github.com/skimbo777/skimbo777-Writing-Correction/edit/main/app.py" target="_blank" class="custom-sidebar-link">
-            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
-            Edit
-        </a>
-        <a href="https://github.com/skimbo777/skimbo777-Writing-Correction" target="_blank" class="custom-sidebar-link">
-            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></span>
-            GitHub
-        </a>
-        <a href="https://github.com/skimbo777/skimbo777-Writing-Correction/fork" target="_blank" class="custom-sidebar-link">
-            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span>
-            Fork
-        </a>
-        <div style="margin-top: 15px;"></div>
-        <a href="https://streamlit.io/" target="_blank" class="custom-sidebar-link" style="border-top: 1px solid rgba(168, 149, 116, 0.2); padding-top: 18px; border-radius: 0;">
-            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M2 22h20"/><path d="M12 2l4 8 6-4-3 14H5L2 6l6 4z"/></svg></span>
-            Streamlit
-        </a>
-        <a href="https://share.streamlit.io/" target="_blank" class="custom-sidebar-link">
-            <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
-            Manage app
-        </a>
-        """, unsafe_allow_html=True)
-        
     else:
-        st.markdown("본인의 Gemini API Key가 필요합니다.  \n[🔑 여기서 무료 키를 발급받으세요 (Google AI Studio)](https://aistudio.google.com/app/apikey)")
-        api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="AIzaSy...", key="api_key_widget")
-        
-        # JS to retrieve from local storage on initial load and handle 'Enter' key login style
+        col1, col2 = st.columns([7, 3])
+        with col1:
+            api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="API Key 입력 (엔터)", label_visibility="collapsed", key="api_key_widget_main")
+        with col2:
+            st.markdown("""<div style="margin-top: 2px; font-size: 0.8rem; color: #888; white-space: nowrap;"><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #A89574; text-decoration: none;">🔑 키 발급</a></div>""", unsafe_allow_html=True)
+            
+        # JS to retrieve from local storage and handle Enter key login
         st.components.v1.html("""
             <script>
                 const p = window.parent;
@@ -618,29 +462,213 @@ with st.sidebar:
                         input.dataset.enterBound = "true";
                         input.addEventListener('keydown', function(event) {
                             if (event.key === 'Enter') {
-                                // Save to localStorage on Enter
                                 if (this.value && this.value.startsWith('AIza')) {
                                     window.localStorage.setItem('gemini_api_key_local', this.value);
                                 }
                             }
                         });
                     }
+                    
+                    // Also hack to style the input container floating right
+                    const container = input.closest('[data-testid="stVerticalBlock"]');
+                    if(container && container.parentElement) {
+                        container.parentElement.style.position = 'absolute';
+                        container.parentElement.style.top = '15px';
+                        container.parentElement.style.right = '15px';
+                        container.parentElement.style.zIndex = '99999';
+                        container.parentElement.style.width = '300px';
+                        container.parentElement.style.backgroundColor = 'rgba(255,255,255,0.8)';
+                        container.parentElement.style.borderRadius = '8px';
+                        container.parentElement.style.padding = '10px';
+                        container.parentElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                        container.parentElement.style.backdropFilter = 'blur(10px)';
+                    }
                 }
             </script>
         """, height=0)
         
-        if api_key_input != saved_key and api_key_input != st.session_state.gemini_api_key:
+        if api_key_input and api_key_input != saved_key and api_key_input != st.session_state.gemini_api_key:
             st.session_state.gemini_api_key = api_key_input
             cookie_manager.set("gemini_api_key", api_key_input)
             if api_key_input.startswith("AIza"):
                 st.rerun()
                 
         if api_key_input and not api_key_input.startswith("AIza"):
-            st.markdown("""
-                <div style="background-color: #fdf3f4; padding: 15px; border-radius: 8px; border: 1px solid #fadce0; margin-top: 10px;">
-                    <p style="color: #d15663; margin: 0; font-size: 0.95em;">❌ API 키를 확인해주세요.</p>
-                </div>
-            """, unsafe_allow_html=True)
+            st.error("❌ 잘못된 API 키")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# Sidebar layout (Only shown for Admin per CSS logic above)
+with st.sidebar:
+    st.markdown("""
+        <div id="my-custom-profile" style="margin-top: 3rem; display: flex; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(168, 149, 116, 0.2); cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background-color: #A89574; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div style="color: #A89574; font-weight: 600; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 1.05rem;">Manage Cloud</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.components.v1.html("""
+        <script>
+            const initCloudCleaner = () => {
+                const parent = window.parent.document;
+                
+                // Aggressive element hider
+                const cleanDOM = () => {
+                    const selectors = [
+                        '.viewerBadge_container', '[id*="viewerBadge"]', '[data-testid="manage-app-button"]', 
+                        '[data-testid="stViewerBadge"]', '[class*="viewerBadge"]', '#creatorBadge', 
+                        'a[href*="streamlit.io/cloud"]'
+                    ];
+                    
+                    const profileBtn = parent.querySelector(selectors.join(', '));
+                    if (profileBtn) {
+                        window._streamlitProfileBtn = profileBtn; 
+                    }
+
+                    const allCloudElements = parent.querySelectorAll(selectors.join(', '));
+                    allCloudElements.forEach(el => {
+                        el.style.setProperty("display", "none", "important");
+                        el.style.setProperty("visibility", "hidden", "important");
+                        el.style.setProperty("opacity", "0", "important");
+                        el.style.setProperty("pointer-events", "none", "important");
+                        
+                        if(el.parentElement && el.parentElement.tagName === 'DIV' && el.parentElement !== parent.body) {
+                            el.parentElement.style.setProperty("display", "none", "important");
+                            el.parentElement.style.setProperty("opacity", "0", "important");
+                        }
+                    });
+                    
+                    const allDivs = parent.querySelectorAll('div');
+                    allDivs.forEach(div => {
+                        const style = window.getComputedStyle(div);
+                        if (style.position === 'fixed' || style.position === 'absolute') {
+                             const bottom = parseInt(style.bottom);
+                             const right = parseInt(style.right);
+                             const zIndex = parseInt(style.zIndex);
+                             if (!isNaN(bottom) && bottom <= 50 && !isNaN(right) && right <= 50 && !isNaN(zIndex) && zIndex > 10) {
+                                 div.style.setProperty("display", "none", "important");
+                                 div.style.setProperty("opacity", "0", "important");
+                                 div.style.setProperty("pointer-events", "none", "important");
+                                 if(!window._streamlitProfileBtn) {
+                                     window._streamlitProfileBtn = div.querySelector('button') || div.querySelector('a') || div;
+                                 }
+                             }
+                        }
+                    });
+                    
+                    const actionElems = parent.querySelectorAll('[data-testid="stActionElements"], .stActionButton, [data-testid="stAppDeployButton"]');
+                    actionElems.forEach(el => {
+                        if (!el.querySelector('[data-testid="collapsedControl"]') && !el.closest('[data-testid="collapsedControl"]')) {
+                            el.style.setProperty("display", "none", "important");
+                            el.style.setProperty("visibility", "hidden", "important");
+                            el.style.setProperty("opacity", "0", "important");
+                            el.style.setProperty("pointer-events", "none", "important");
+                        }
+                    });
+                    
+                    const toolbar = parent.querySelector('[data-testid="stToolbar"]');
+                    if (toolbar) {
+                        toolbar.style.setProperty("visibility", "hidden", "important");
+                    }
+                };
+                
+                setInterval(cleanDOM, 500);
+                cleanDOM();
+                
+                const myProfile = document.getElementById("my-custom-profile");
+                if (myProfile && !myProfile.dataset.bound) {
+                    myProfile.dataset.bound = "true";
+                    myProfile.addEventListener("click", () => {
+                         if (window._streamlitProfileBtn) {
+                             const btn = window._streamlitProfileBtn.querySelector('button') || 
+                                         window._streamlitProfileBtn.querySelector('a') || 
+                                         window._streamlitProfileBtn;
+                             if(btn && typeof btn.click === 'function') {
+                                 btn.click();
+                             } else {
+                                 alert("프로필 또는 클라우드 메뉴를 열 수 없습니다.");
+                             }
+                         } else {
+                             alert("클라우드 설정에 연결할 수 없습니다. Streamlit 커뮤니티 클라우드 환경에서만 동작합니다.");
+                         }
+                    });
+                }
+            };
+            if(document.readyState === 'complete') initCloudCleaner();
+            else window.addEventListener('load', initCloudCleaner);
+        </script>
+    """, height=0)
+    
+    st.markdown("<h3 style='margin-bottom: 15px; color: #A89574;'>Menu</h3>", unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+    .custom-sidebar-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        color: #A89574 !important;
+        text-decoration: none;
+        font-weight: 500;
+        border-radius: 8px;
+        margin-bottom: 5px;
+        transition: all 0.2s;
+        font-family: 'Pretendard Variable', Pretendard, sans-serif;
+        font-size: 0.95rem;
+    }
+    .custom-sidebar-link:hover {
+        background-color: rgba(168, 149, 116, 0.1);
+        text-decoration: none;
+    }
+    .custom-sidebar-icon {
+        margin-right: 12px;
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .custom-sidebar-icon svg {
+        width: 100%;
+        height: 100%;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+    }
+    </style>
+    <a href="#" onclick="navigator.clipboard.writeText(window.location.href); alert('현재 앱의 URL이 복사되었습니다!'); return false;" class="custom-sidebar-link">
+        <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
+        Share
+    </a>
+    <a href="https://github.com/skimbo777/skimbo777-Writing-Correction/stargazers" target="_blank" class="custom-sidebar-link">
+        <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+        Star
+    </a>
+    <a href="https://github.com/skimbo777/skimbo777-Writing-Correction/edit/main/app.py" target="_blank" class="custom-sidebar-link">
+        <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+        Edit
+    </a>
+    <a href="https://github.com/skimbo777/skimbo777-Writing-Correction" target="_blank" class="custom-sidebar-link">
+        <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></span>
+        GitHub
+    </a>
+    <a href="https://github.com/skimbo777/skimbo777-Writing-Correction/fork" target="_blank" class="custom-sidebar-link">
+        <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span>
+        Fork
+    </a>
+    <div style="margin-top: 15px;"></div>
+    <a href="https://streamlit.io/" target="_blank" class="custom-sidebar-link" style="border-top: 1px solid rgba(168, 149, 116, 0.2); padding-top: 18px; border-radius: 0;">
+        <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><path d="M2 22h20"/><path d="M12 2l4 8 6-4-3 14H5L2 6l6 4z"/></svg></span>
+        Streamlit
+    </a>
+    <a href="https://share.streamlit.io/" target="_blank" class="custom-sidebar-link">
+        <span class="custom-sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        Manage app
+    </a>
+    """, unsafe_allow_html=True)
 
 # Session state initialization
 if "suggestions" not in st.session_state:
