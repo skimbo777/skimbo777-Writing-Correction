@@ -1251,20 +1251,24 @@ if st.session_state.suggestions is not None:
                 ]
                 
                 apply_resp = model.generate_content(prompt, safety_settings=safety_settings)
-                st.session_state.final_text = apply_resp.text.strip()
+                st.session_state.main_text_input = apply_resp.text.strip()
+                st.session_state.suggestions = None
+                st.session_state.original_text = ""
+                st.session_state.final_text = ""
+                st.session_state.hidden_choices_input = "{}"
+                
+                # Rerun to show updated text in the main box
+                st.rerun()
+                
             except Exception as e:
                 error_msg = str(e).lower()
                 if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
-                    st.session_state.final_text = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 완성하기 버튼을 눌러주세요."
+                    st.error("❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 완성하기 버튼을 눌러주세요.")
                 elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg:
-                    st.session_state.final_text = "❌ API 키가 유효하지 않습니다. 올바른 API 키를 입력해주세요."
+                    st.error("❌ API 키가 유효하지 않습니다. 올바른 API 키를 입력해주세요.")
                 elif "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg:
-                    st.session_state.final_text = "❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다."
+                    st.error("❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다.")
                 else:
-                    st.session_state.final_text = f"❌ 오류가 발생했습니다: {str(e)}\n\n(잠시 후 다시 시도해주세요.)"
+                    st.error(f"❌ 오류가 발생했습니다: {str(e)}\n\n(잠시 후 다시 시도해주세요.)")
                 
             loading_placeholder2.empty()
-
-if st.session_state.final_text:
-    st.markdown("### ✨ 완성된 글 <span class='pencil-anim'></span>", unsafe_allow_html=True)
-    st.text_area("아래 텍스트를 복사하여 사용하세요:", value=st.session_state.final_text, height=300, key="final")
