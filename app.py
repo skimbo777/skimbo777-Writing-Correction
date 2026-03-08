@@ -788,18 +788,26 @@ st.components.v1.html("""
                     ta.addEventListener('keydown', function(e) {
                         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                             e.preventDefault(); // prevent new line
-                            e.target.blur(); // Force Streamlit to sync the typed text
+                            e.stopPropagation(); // prevent React from eating the event
+                            
+                            // Force Streamlit to sync the typed text by blurring
+                            ta.blur(); 
                             
                             setTimeout(() => {
                                 // Find '교정하기' button
                                 const buttons = Array.from(parent.querySelectorAll('button'));
                                 const correctBtn = buttons.find(b => b.textContent && b.textContent.includes('교정하기'));
-                                if (correctBtn) {
+                                if (correctBtn && !correctBtn.disabled) {
                                     correctBtn.click();
                                 }
-                            }, 150);
+                            }, 300); // 300ms is safe enough for Streamlit to sync text
+                            
+                            // Return focus after click
+                            setTimeout(() => {
+                                ta.focus();
+                            }, 600);
                         }
-                    });
+                    }, { capture: true }); // Use capture phase to intercept before Streamlit binds
                 }
             });
         };
@@ -849,10 +857,17 @@ def analyze_text(text):
 
     try:
         genai.configure(api_key=api_key_to_use)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
         
         prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompt, safety_settings=safety_settings)
         content = response.text.strip()
         
         start_idx = content.find('[')
@@ -867,8 +882,20 @@ def analyze_text(text):
         error_msg = str(e).lower()
         if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
             st.error("❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요.")
+        elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg:
+            st.error("❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요.")
+            if st.button("🔑 인증키 다시 입력하기", key="reset_key_btn1"):
+                st.session_state.authenticated = False
+                st.session_state.gemini_api_key_actual = ""
+                st.session_state.gemini_api_key = ""
+                cookie_manager.delete("gemini_api_key")
+                st.rerun()
+        elif "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg:
+            st.error("❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요.")
+        elif "json format" in error_msg:
+            st.error("❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요.")
         else:
-            st.error("❌ 서버 연결 설정 중입니다. 10초 후 다시 시도해주세요.")
+            st.error(f"❌ 오류가 발생했습니다: {str(e)}\n\n(서버 연결 문제일 경우 잠시 후 다시 시도해주세요.)")
         return None
 
 if "do_analyze" not in st.session_state:
@@ -1054,17 +1081,29 @@ if st.session_state.suggestions is not None:
                         pass
                 
                 genai.configure(api_key=api_key_to_use)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('models/gemini-1.5-flash')
                 
                 prompt = f"{APPLY_PROMPT}\n\n{user_content}"
-                apply_resp = model.generate_content(prompt)
+                
+                safety_settings = [
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                ]
+                
+                apply_resp = model.generate_content(prompt, safety_settings=safety_settings)
                 st.session_state.final_text = apply_resp.text.strip()
             except Exception as e:
                 error_msg = str(e).lower()
                 if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
                     st.session_state.final_text = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 완성하기 버튼을 눌러주세요."
+                elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg:
+                    st.session_state.final_text = "❌ API 키가 유효하지 않습니다. 올바른 API 키를 입력해주세요."
+                elif "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg:
+                    st.session_state.final_text = "❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다."
                 else:
-                    st.session_state.final_text = "❌ 서버 연결 설정 중입니다. 10초 후 다시 시도해주세요."
+                    st.session_state.final_text = f"❌ 오류가 발생했습니다: {str(e)}\n\n(잠시 후 다시 시도해주세요.)"
                 
             loading_placeholder2.empty()
 
