@@ -437,84 +437,94 @@ with auth_placeholder:
         </style>
     """, unsafe_allow_html=True)
     
-    api_key_input = st.text_input("Key", value=st.session_state.gemini_api_key, type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main")
-    
-    st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급</a></div>""", unsafe_allow_html=True)
-            
-    # JS for precise absolute positioning and Enter key login
-    st.components.v1.html("""
-        <script>
-            // Position the container
-            const anchor = window.parent.document.getElementById('auth-anchor');
-            if (anchor) {
-                const container = anchor.closest('[data-testid="stVerticalBlock"]');
-                if (container) {
-                    container.style.position = 'absolute';
-                    container.style.top = '3.5rem'; 
-                    container.style.right = '2rem';
-                    container.style.width = '240px';
-                    container.style.zIndex = '999999';
-                    // clear background
-                    container.style.background = 'transparent';
-                    container.style.boxShadow = 'none';
-                    container.style.border = 'none';
+    def handle_login():
+        val = st.session_state.get("api_key_widget_main", "")
+        if val and val != saved_key and val != st.session_state.gemini_api_key:
+            st.session_state.gemini_api_key = val
+            cookie_manager.set("gemini_api_key", val)
+
+    if is_valid_key:
+        badge_text = "제작자 모드" if is_admin else "인증 완료"
+        badge_color = "#A89574" if is_admin else "#4a8b5b"
+        st.markdown(f"""
+            <div style="background-color: rgba(255,255,255,0.8); padding: 4px 12px; border-radius: 20px; border: 1px solid #e0dcd5; backdrop-filter: blur(5px);">
+                <span style="color: {badge_color}; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.85rem; font-weight: 600;">✅ {badge_text}</span>
+            </div>
+        """, unsafe_allow_html=True)
+    else:    
+        api_key_input = st.text_input("Key", value=st.session_state.gemini_api_key, type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main", on_change=handle_login)
+        
+        st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급</a></div>""", unsafe_allow_html=True)
+                
+        # JS for precise absolute positioning and Enter key login
+        st.components.v1.html("""
+            <script>
+                // Position the container
+                const anchor = window.parent.document.getElementById('auth-anchor');
+                if (anchor) {
+                    const container = anchor.closest('[data-testid="stVerticalBlock"]');
+                    if (container) {
+                        container.style.position = 'absolute';
+                        container.style.top = '3.5rem'; 
+                        container.style.right = '2rem';
+                        container.style.width = '240px';
+                        container.style.zIndex = '999999';
+                        // clear background
+                        container.style.background = 'transparent';
+                        container.style.boxShadow = 'none';
+                        container.style.border = 'none';
+                    }
                 }
-            }
-            
-            // Auto submit logic
-            const p = window.parent;
-            const savedKey = window.localStorage.getItem('gemini_api_key_local');
-            
-            // find input in the SAME container
-            if (anchor) {
-                const container = anchor.closest('[data-testid="stVerticalBlock"]');
-                if(container) {
-                    const inputs = container.querySelectorAll('input[type="password"]');
-                    for (let input of inputs) {
-                        // Auto-fill from localStorage if available and empty
-                        if (savedKey && !input.value) {
-                            let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                            nativeInputValueSetter.call(input, savedKey);
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                
+                // Auto submit logic
+                const p = window.parent;
+                const savedKey = window.localStorage.getItem('gemini_api_key_local');
+                
+                // find input in the SAME container
+                if (anchor) {
+                    const container = anchor.closest('[data-testid="stVerticalBlock"]');
+                    if(container) {
+                        const inputs = container.querySelectorAll('input[type="password"]');
+                        for (let input of inputs) {
+                            // Auto-fill from localStorage if available and empty
+                            if (savedKey && !input.value) {
+                                let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                                nativeInputValueSetter.call(input, savedKey);
+                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                
+                                // Force a tiny delay then trigger Enter to submit instantly
+                                setTimeout(() => {
+                                    input.dispatchEvent(new KeyboardEvent('keydown', {
+                                        key: 'Enter',
+                                        code: 'Enter',
+                                        keyCode: 13,
+                                        which: 13,
+                                        bubbles: true,
+                                        cancelable: true
+                                    }));
+                                }, 100);
+                            }
                             
-                            // Force a tiny delay then trigger Enter to submit instantly
-                            setTimeout(() => {
-                                input.dispatchEvent(new KeyboardEvent('keydown', {
-                                    key: 'Enter',
-                                    code: 'Enter',
-                                    keyCode: 13,
-                                    which: 13,
-                                    bubbles: true,
-                                    cancelable: true
-                                }));
-                            }, 100);
-                        }
-                        
-                        // Add save logic to enter key
-                        if (!input.dataset.enterBound) {
-                            input.dataset.enterBound = "true";
-                            input.addEventListener('keydown', function(event) {
-                                if (event.key === 'Enter') {
-                                    if (this.value) {
-                                        window.localStorage.setItem('gemini_api_key_local', this.value);
+                            // Add save logic to enter key
+                            if (!input.dataset.enterBound) {
+                                input.dataset.enterBound = "true";
+                                input.addEventListener('keydown', function(event) {
+                                    if (event.key === 'Enter') {
+                                        if (this.value) {
+                                            window.localStorage.setItem('gemini_api_key_local', this.value);
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            }
                         }
                     }
                 }
-            }
-        </script>
-    """, height=0)
-    
-    if api_key_input and api_key_input != saved_key and api_key_input != st.session_state.gemini_api_key:
-        st.session_state.gemini_api_key = api_key_input
-        cookie_manager.set("gemini_api_key", api_key_input)
-        if api_key_input.startswith("AIza") or api_key_input == MASTER_KEY:
-            st.rerun()
-            
-    if api_key_input and not (api_key_input.startswith("AIza") or api_key_input == MASTER_KEY):
-        st.error("❌ 잘못된 인증키")
+            </script>
+        """, height=0)
+        
+        val_check = st.session_state.get("api_key_widget_main", "")
+        if val_check and not (val_check.startswith("AIza") or val_check == MASTER_KEY):
+            st.error("❌ 잘못된 인증키")
 
 
 # Sidebar layout (Only shown for Admin per CSS logic above)
