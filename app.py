@@ -938,7 +938,7 @@ if st.session_state.do_analyze:
         with loading_placeholder_top.container():
             col1, col2 = st.columns([2, 8])
             with col1:
-                st.button("Stop 🛑", key="stop_analyze")
+                st.button("중지", type="primary", key="stop_analyze")
             with col2:
                 st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
                 
@@ -1236,7 +1236,7 @@ if st.session_state.suggestions is not None:
                     })
                 
             with gen_stop_placeholder.container():
-                st.button("Stop", type="primary", key="stop_gen")
+                st.button("중지", type="primary", key="stop_gen")
                 
             loading_placeholder2 = st.empty()
             with loading_placeholder2.container():
