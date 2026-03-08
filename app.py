@@ -778,8 +778,12 @@ if "main_text_input" not in st.session_state:
 if "do_analyze" not in st.session_state:
     st.session_state.do_analyze = False
 
+if "input_error" not in st.session_state:
+    st.session_state.input_error = None
+
 def trigger_analysis():
     st.session_state.do_analyze = True
+    st.session_state.input_error = None
 
 loading_placeholder_top = st.empty()
 
@@ -788,6 +792,9 @@ if st.session_state.suggestions is None:
         st.markdown('<div class="custom-desc" style="text-align: center; padding: 1rem; border-radius: 0.5rem; background-color: rgba(74, 139, 91, 0.1); color: #2b5937; margin-bottom: 1rem; border: 1px solid rgba(74, 139, 91, 0.2);">✨ 교정이 완료되어 아래 텍스트 창에 완성본이 반영되었습니다!</div>', unsafe_allow_html=True)
         st.toast("교정이 완료되었습니다!", icon="🎉")
         st.session_state.show_success = False
+        
+    if st.session_state.input_error:
+        st.markdown(f'<div class="custom-desc" style="text-align: center; padding: 0.6rem; border-radius: 0.5rem; background-color: rgba(255, 243, 205, 0.6); color: #856404; margin-bottom: 1rem; border: 1px solid rgba(255, 243, 205, 1); font-size: 0.85rem; max-width: 50%; margin-left: auto; margin-right: auto;">{st.session_state.input_error}</div>', unsafe_allow_html=True)
         
     if not st.session_state.do_analyze:
         with loading_placeholder_top.container():
@@ -927,9 +934,11 @@ if st.session_state.do_analyze:
     
     user_text_val = st.session_state.get("main_text_input", "") 
     if not user_text_val.strip():
-        st.markdown('<div class="custom-desc" style="text-align: center; padding: 1rem; border-radius: 0.5rem; background-color: rgba(255, 243, 205, 0.6); color: #856404; margin-bottom: 1rem; border: 1px solid rgba(255, 243, 205, 1);">교정할 글을 입력해주세요.</div>', unsafe_allow_html=True)
+        st.session_state.input_error = "교정할 글을 입력해주세요."
+        st.rerun()
     elif len(user_text_val) > 3000:
-        st.markdown(f'<div class="custom-desc" style="text-align: center; padding: 1rem; border-radius: 0.5rem; background-color: rgba(255, 243, 205, 0.6); color: #856404; margin-bottom: 1rem; border: 1px solid rgba(255, 243, 205, 1);">⚠️ 한 번에 교정할 수 있는 글자 수를 초과했습니다. (현재 {len(user_text_val)}자 / 최대 권장 3,000자). 글을 나누어 교정해주세요.</div>', unsafe_allow_html=True)
+        st.session_state.input_error = f"⚠️ 한 번에 교정할 수 있는 글자 수를 초과했습니다. (현재 {len(user_text_val)}자 / 최대 권장 3,000자). 글을 나누어 교정해주세요."
+        st.rerun()
     else:
         # Reset state upon new analysis
         st.session_state.suggestions = None
