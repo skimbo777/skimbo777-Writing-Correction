@@ -494,15 +494,11 @@ with auth_placeholder:
                                 
                                 // Force a tiny delay then trigger Enter to submit instantly
                                 setTimeout(() => {
-                                    input.dispatchEvent(new KeyboardEvent('keydown', {
-                                        key: 'Enter',
-                                        code: 'Enter',
-                                        keyCode: 13,
-                                        which: 13,
-                                        bubbles: true,
-                                        cancelable: true
-                                    }));
-                                }, 100);
+                                    const enterEvent = new window.parent.KeyboardEvent('keydown', {
+                                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
+                                    });
+                                    input.dispatchEvent(enterEvent);
+                                }, 300);
                             }
                             
                             // Add save logic to enter key
@@ -513,6 +509,13 @@ with auth_placeholder:
                                         if (this.value) {
                                             window.localStorage.setItem('gemini_api_key_local', this.value);
                                         }
+                                        setTimeout(() => {
+                                            this.blur(); // Remove focus to force streamlit to sync value
+                                            const enterEvent = new window.parent.KeyboardEvent('keydown', {
+                                                key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
+                                            });
+                                            this.dispatchEvent(enterEvent);
+                                        }, 50);
                                     }
                                 });
                             }
