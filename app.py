@@ -306,7 +306,13 @@ def render_custom_header():
         </div>
     """, unsafe_allow_html=True)
 
-# Authentication State (API Key check)
+# ==========================================
+# Authentication & Sidebar Logic
+# ==========================================
+
+# Define Master Key for Creator (e.g., Pastor's specific access code)
+MASTER_KEY = "admin777!" # Change this to the desired master key
+
 saved_key = cookie_manager.get("gemini_api_key") or ""
 global_key = ""
 try:
@@ -316,26 +322,32 @@ except FileNotFoundError:
 
 if "gemini_api_key" not in st.session_state:
     st.session_state.gemini_api_key = global_key or saved_key
-    
-is_valid_key = st.session_state.gemini_api_key and st.session_state.gemini_api_key.startswith("AIza")
 
-# Admin verification logic
+current_input = st.session_state.gemini_api_key
+
 is_admin = False
-try:
-    # Check Streamlit Community Cloud logged-in user email
-    if hasattr(st, "experimental_user") and st.experimental_user.email:
-        if st.experimental_user.email in ["skimbo777@gmail.com"] or "admin" in st.experimental_user.email.lower():
-            is_admin = True
-        if st.experimental_user.email == "skimbo777@gmail.com":
-            is_admin = True
-except Exception:
-    pass
+is_valid_key = False
 
-# Optional query param backdoor for local testing or explicit admin link (?admin=true)
+if current_input:
+    if current_input == MASTER_KEY:
+        is_admin = True
+        is_valid_key = True # Admin also needs app access 
+        # For admin, we use the global key if available, otherwise they MUST have configured it previously
+        if global_key:
+            st.session_state.gemini_api_key_actual = global_key
+    elif current_input.startswith("AIza"):
+        is_valid_key = True
+        st.session_state.gemini_api_key_actual = current_input
+
+# Fallback: if somehow the global key is there and they just entered a general password?
+if not getattr(st.session_state, "gemini_api_key_actual", None) and global_key and is_valid_key:
+    st.session_state.gemini_api_key_actual = global_key
+
+# Optional query param backdoor
 if not is_admin and "admin" in st.query_params and st.query_params["admin"] == "true":
     is_admin = True
     
-if not (is_admin or is_valid_key):
+if not is_admin:
     # Hide sidebar completely for non-admins
     st.markdown("""
         <style>
@@ -387,19 +399,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Authentication State processing moved to top for sidebar logic
-
 # Render Auth UI in main flow but styled to float top right via CSS injector
 auth_placeholder = st.empty()
 with auth_placeholder.container():
     st.markdown('<div class="top-right-auth">', unsafe_allow_html=True)
     if is_valid_key:
-        st.markdown("""
-            <div style="display: flex; align-items: center; background-color: rgba(238, 247, 240, 0.9); padding: 8px 16px; border-radius: 20px; border: 1px solid #d4ebd9; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                <div style="width: 24px; height: 24px; border-radius: 50%; background-color: #A89574; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+        badge_text = "제작자 모드" if is_admin else "인증 완료"
+        badge_color = "#A89574" if is_admin else "#4a8b5b"
+        st.markdown(f"""
+            <div style="display: flex; align-items: center; background-color: rgba(255, 255, 255, 0.9); padding: 8px 16px; border-radius: 20px; border: 1px solid #e0e0e0; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                <div style="width: 24px; height: 24px; border-radius: 50%; background-color: {badge_color}; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
-                <span style="color: #4a8b5b; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.95rem; font-weight: 600;">인증 완료</span>
+                <span style="color: {badge_color}; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.95rem; font-weight: 600;">{badge_text}</span>
             </div>
         """, unsafe_allow_html=True)
         # JS to remove focus from any element to prevent yellow outline, and check if we should prompt to save
@@ -414,9 +426,7 @@ with auth_placeholder.container():
                 const savedKey = window.localStorage.getItem('gemini_api_key_local');
                 if (currentKey && currentKey !== savedKey) {
                     setTimeout(() => {
-                        if (window.confirm("이 API 키를 브라우저에 기억할까요?")) {
-                            window.localStorage.setItem('gemini_api_key_local', currentKey);
-                        }
+                        window.localStorage.setItem('gemini_api_key_local', currentKey);
                     }, 500);
                 }
             </script>
@@ -535,11 +545,11 @@ with auth_placeholder.container():
         if api_key_input and api_key_input != saved_key and api_key_input != st.session_state.gemini_api_key:
             st.session_state.gemini_api_key = api_key_input
             cookie_manager.set("gemini_api_key", api_key_input)
-            if api_key_input.startswith("AIza"):
+            if api_key_input.startswith("AIza") or api_key_input == MASTER_KEY:
                 st.rerun()
                 
-        if api_key_input and not api_key_input.startswith("AIza"):
-            st.error("❌ 잘못된 API 키")
+        if api_key_input and not (api_key_input.startswith("AIza") or api_key_input == MASTER_KEY):
+            st.error("❌ 잘못된 API 키 또는 마스터키입니다.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 
