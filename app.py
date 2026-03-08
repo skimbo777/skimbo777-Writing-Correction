@@ -378,179 +378,143 @@ render_custom_header()
 # ==========================================
 
 # Top Right Auth UI Container
-st.markdown("""
-    <style>
-    .top-right-auth {
-        position: absolute;
-        top: 1rem;
-        right: 1.5rem;
-        z-index: 999999;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
+auth_placeholder = st.container()
+with auth_placeholder:
+    st.markdown('<div id="auth-anchor"></div>', unsafe_allow_html=True)
     
-    /* Make Streamlit's container for the auth elements transparent and right-aligned */
-    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > div:first-child {
-        float: right;
-        display: flex;
-        justify-content: flex-end;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Render Auth UI in main flow but styled to float top right via CSS injector
-auth_placeholder = st.empty()
-with auth_placeholder.container():
-    st.markdown('<div class="top-right-auth">', unsafe_allow_html=True)
-    if is_valid_key:
-        badge_text = "제작자 모드" if is_admin else "인증 완료"
-        badge_color = "#A89574" if is_admin else "#4a8b5b"
-        st.markdown(f"""
-            <div style="display: flex; align-items: center; background-color: rgba(255, 255, 255, 0.9); padding: 8px 16px; border-radius: 20px; border: 1px solid #e0e0e0; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                <div style="width: 24px; height: 24px; border-radius: 50%; background-color: {badge_color}; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </div>
-                <span style="color: {badge_color}; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.95rem; font-weight: 600;">{badge_text}</span>
-            </div>
-        """, unsafe_allow_html=True)
-        # JS to remove focus from any element to prevent yellow outline, and check if we should prompt to save
-        st.components.v1.html("""
-            <script>
-                // Remove focus
-                Array.from(window.parent.document.querySelectorAll('input')).forEach(i => i.blur()); 
-                if(window.parent.document.activeElement) window.parent.document.activeElement.blur();
-                
-                // Ask to save if not already saved and just entered
-                const currentKey = '""" + st.session_state.gemini_api_key + """';
-                const savedKey = window.localStorage.getItem('gemini_api_key_local');
-                if (currentKey && currentKey !== savedKey) {
-                    setTimeout(() => {
-                        window.localStorage.setItem('gemini_api_key_local', currentKey);
-                    }, 500);
-                }
-            </script>
-        """, height=0)
-    else:
-        st.markdown("""
+    st.markdown("""
         <style>
+        /* Modern minimal text input styling */
         [data-testid="stTextInput"] div[data-baseweb="input"] {
-            border-radius: 20px;
-            background-color: rgba(255,255,255,0.9);
-            border: 1px solid #e0e0e0;
-            padding: 0 10px;
+            border-radius: 20px !important;
+            background-color: rgba(255,255,255,0.7) !important;
+            border: 1px solid #e0dcd5 !important;
+            padding: 0 12px !important;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+        }
+        [data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
+            border-color: #A89574 !important;
+            background-color: rgba(255,255,255,0.95) !important;
+            box-shadow: 0 0 0 1px #A89574 !important;
         }
         [data-testid="stTextInput"] input {
             font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
             color: #666666 !important;
-            font-size: 0.9rem !important;
-            height: 36px !important;
+            font-size: 0.85rem !important;
+            height: 32px !important;
         }
-        [data-testid="stButton"] button {
-            border-radius: 20px !important;
-            height: 38px !important;
-            padding: 0 16px !important;
-            font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
-            font-weight: 600 !important;
-            background-color: #666666 !important;
-            color: #FAF9F6 !important;
-            border: none !important;
-            transition: all 0.2s;
-            margin-top: 0px !important;
-        }
-        [data-testid="stButton"] button:hover {
-            background-color: #A89574 !important;
-            color: white !important;
+        [data-testid="stTextInput"] input::placeholder {
+            color: #b0ada8 !important;
         }
         .key-link {
-            position: absolute;
-            bottom: -20px;
-            right: 0px;
-            font-size: 0.75rem;
-            color: #888;
-            white-space: nowrap;
+            text-align: right;
+            margin-top: 5px;
+            margin-right: 8px;
         }
         .key-link a {
             color: #A89574;
             text-decoration: none;
+            font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
+            font-weight: 500;
+            font-size: 0.75rem;
+            transition: color 0.2s;
+        }
+        .key-link a:hover {
+            color: #8c7b5f;
+        }
+        
+        /* Error text style */
+        .stAlert {
+            padding: 0.5rem !important;
+            margin-top: 0.5rem !important;
+        }
+        .stAlert p {
+            font-size: 0.8rem !important;
+            font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
+            margin-bottom: 0 !important;
         }
         </style>
-        """, unsafe_allow_html=True)
-        
-        col1, col2 = st.columns([7, 3])
-        with col1:
-            api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="API 인증키 (Enter)", label_visibility="collapsed", key="api_key_widget_main")
-        with col2:
-            st.button("로그인", key="auth_submit", use_container_width=True)
+    """, unsafe_allow_html=True)
+    
+    api_key_input = st.text_input("Key", value=st.session_state.gemini_api_key, type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main")
+    
+    st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급</a></div>""", unsafe_allow_html=True)
             
-        st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급</a></div>""", unsafe_allow_html=True)
+    # JS for precise absolute positioning and Enter key login
+    st.components.v1.html("""
+        <script>
+            // Position the container
+            const anchor = window.parent.document.getElementById('auth-anchor');
+            if (anchor) {
+                const container = anchor.closest('[data-testid="stVerticalBlock"]');
+                if (container) {
+                    container.style.position = 'absolute';
+                    container.style.top = '3.5rem'; 
+                    container.style.right = '2rem';
+                    container.style.width = '240px';
+                    container.style.zIndex = '999999';
+                    // clear background
+                    container.style.background = 'transparent';
+                    container.style.boxShadow = 'none';
+                    container.style.border = 'none';
+                }
+            }
             
-        # JS to retrieve from local storage and handle Enter key login
-        st.components.v1.html("""
-            <script>
-                const p = window.parent;
-                const savedKey = window.localStorage.getItem('gemini_api_key_local');
-                
-                const inputs = p.document.querySelectorAll('input[type="password"]');
-                for (let input of inputs) {
-                    // 1. Auto-fill from localStorage if available and empty
-                    if (savedKey && savedKey.startsWith('AIza') && !input.value) {
-                        let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                        nativeInputValueSetter.call(input, savedKey);
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
+            // Auto submit logic
+            const p = window.parent;
+            const savedKey = window.localStorage.getItem('gemini_api_key_local');
+            
+            // find input in the SAME container
+            if (anchor) {
+                const container = anchor.closest('[data-testid="stVerticalBlock"]');
+                if(container) {
+                    const inputs = container.querySelectorAll('input[type="password"]');
+                    for (let input of inputs) {
+                        // Auto-fill from localStorage if available and empty
+                        if (savedKey && !input.value) {
+                            let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                            nativeInputValueSetter.call(input, savedKey);
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            
+                            // Force a tiny delay then trigger Enter to submit instantly
+                            setTimeout(() => {
+                                input.dispatchEvent(new KeyboardEvent('keydown', {
+                                    key: 'Enter',
+                                    code: 'Enter',
+                                    keyCode: 13,
+                                    which: 13,
+                                    bubbles: true,
+                                    cancelable: true
+                                }));
+                            }, 100);
+                        }
                         
-                        // Force a tiny delay then trigger Enter to submit instantly
-                        setTimeout(() => {
-                            input.dispatchEvent(new KeyboardEvent('keydown', {
-                                key: 'Enter',
-                                code: 'Enter',
-                                keyCode: 13,
-                                which: 13,
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }, 100);
-                    }
-                    
-                    // 2. Add Enter key listener for manual entry
-                    if (!input.dataset.enterBound) {
-                        input.dataset.enterBound = "true";
-                        input.addEventListener('keydown', function(event) {
-                            if (event.key === 'Enter') {
-                                if (this.value && this.value.startsWith('AIza')) {
-                                    window.localStorage.setItem('gemini_api_key_local', this.value);
+                        // Add save logic to enter key
+                        if (!input.dataset.enterBound) {
+                            input.dataset.enterBound = "true";
+                            input.addEventListener('keydown', function(event) {
+                                if (event.key === 'Enter') {
+                                    if (this.value) {
+                                        window.localStorage.setItem('gemini_api_key_local', this.value);
+                                    }
                                 }
-                            }
-                        });
-                    }
-                    
-                    // Also hack to style the input container floating right
-                    const container = input.closest('[data-testid="stVerticalBlock"]');
-                    if(container && container.parentElement) {
-                        container.parentElement.style.position = 'absolute';
-                        container.parentElement.style.top = '15px';
-                        container.parentElement.style.right = '15px';
-                        container.parentElement.style.zIndex = '99999';
-                        container.parentElement.style.width = '300px';
-                        container.parentElement.style.backgroundColor = 'rgba(255,255,255,0.8)';
-                        container.parentElement.style.borderRadius = '8px';
-                        container.parentElement.style.padding = '10px';
-                        container.parentElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
-                        container.parentElement.style.backdropFilter = 'blur(10px)';
+                            });
+                        }
                     }
                 }
-            </script>
-        """, height=0)
-        
-        if api_key_input and api_key_input != saved_key and api_key_input != st.session_state.gemini_api_key:
-            st.session_state.gemini_api_key = api_key_input
-            cookie_manager.set("gemini_api_key", api_key_input)
-            if api_key_input.startswith("AIza") or api_key_input == MASTER_KEY:
-                st.rerun()
-                
-        if api_key_input and not (api_key_input.startswith("AIza") or api_key_input == MASTER_KEY):
-            st.error("❌ 잘못된 API 키 또는 마스터키입니다.")
-    st.markdown('</div>', unsafe_allow_html=True)
+            }
+        </script>
+    """, height=0)
+    
+    if api_key_input and api_key_input != saved_key and api_key_input != st.session_state.gemini_api_key:
+        st.session_state.gemini_api_key = api_key_input
+        cookie_manager.set("gemini_api_key", api_key_input)
+        if api_key_input.startswith("AIza") or api_key_input == MASTER_KEY:
+            st.rerun()
+            
+    if api_key_input and not (api_key_input.startswith("AIza") or api_key_input == MASTER_KEY):
+        st.error("❌ 잘못된 인증키")
 
 
 # Sidebar layout (Only shown for Admin per CSS logic above)
