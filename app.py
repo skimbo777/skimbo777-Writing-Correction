@@ -1033,8 +1033,16 @@ if st.session_state.suggestions is not None:
     </style>
     """, unsafe_allow_html=True)
     
+    user_choices_str = st.session_state.get("hidden_choices_input", "{}")
+    try:
+        user_choices = json.loads(user_choices_str)
+    except:
+        user_choices = {}
+        
     for i, sug in enumerate(all_sugs):
-        orig = html.escape(sug.get('original', ''))
+        raw_orig = sug.get('original', '')
+        orig = html.escape(raw_orig)
+        
         corr_raw = sug.get('correction', [])
         if isinstance(corr_raw, str):
             options = [c.strip() for c in corr_raw.split(',')]
@@ -1054,8 +1062,15 @@ if st.session_state.suggestions is not None:
             
         options_json = html.escape(json.dumps(options).replace("'", "\\'"))
         
+        raw_choice = user_choices.get(str(i))
+        if not raw_choice:
+            raw_choice = raw_orig
+            
+        display_text = html.escape(raw_choice)
+        resolved_class = " resolved" if raw_choice != raw_orig else ""
+        
         if orig and orig in annotated_text:
-            span_html = f'<span class="highlight-word" data-index="{i}" data-orig="{orig}" data-options=\'{options_json}\' data-tooltip="{tooltip_text}">{orig}</span>'
+            span_html = f'<span class="highlight-word{resolved_class}" data-index="{i}" data-orig="{orig}" data-options=\'{options_json}\' data-tooltip="{tooltip_text}">{display_text}</span>'
             annotated_text = annotated_text.replace(orig, span_html, 1)
             
     pseudo_textarea_html = f'''
