@@ -952,13 +952,117 @@ if st.session_state.do_analyze:
                 
 if st.session_state.suggestions is not None:
     # Render interactive text area replacement
-    st.markdown("### 📝 분석된 원문 (틀린 단어 위에 마우스를 올리면 교정 내용이 보입니다)")
-    
-    annotated_text = html.escape(st.session_state.original_text)
+    st.markdown('<div class="custom-desc" style="text-align: center; margin-bottom: 10px;">📝 분석된 원문 (틀린 단어 위에 마우스를 올리면 교정 내용이 보입니다)</div>', unsafe_allow_html=True)
     
     corrections = [s for s in st.session_state.suggestions if s.get("type", "correction") != "suggestion"]
     literary_suggestions = [s for s in st.session_state.suggestions if s.get("type") == "suggestion"]
     all_sugs = corrections + literary_suggestions
+    
+    cmd_col1, cmd_col2, cmd_col3, _ = st.columns([2.5, 4.5, 1.5, 1.5])
+    with cmd_col1:
+        reset_clicked = st.button("돌아가기 (계속 편집)")
+    with cmd_col2:
+        generate_clicked = st.button("모든 교정 제안을 적용하여 완성하기", type="primary")
+    with cmd_col3:
+        gen_stop_placeholder = st.empty()
+        
+    if reset_clicked:
+        st.session_state.main_text_input = st.session_state.original_text
+        st.session_state.suggestions = None
+        st.session_state.final_text = ""
+        st.rerun()
+        
+    if generate_clicked:
+        selected_suggestions = []
+        user_choices_str = st.session_state.get("hidden_choices_input", "{}")
+        try:
+            user_choices = json.loads(user_choices_str)
+        except:
+            user_choices = {}
+            
+        for i, sug in enumerate(all_sugs):
+            orig = sug.get('original', '')
+            choice = user_choices.get(str(i))
+            
+            if not choice:
+                corr_raw = sug.get('correction', [])
+                if isinstance(corr_raw, list) and len(corr_raw) > 0:
+                    choice = corr_raw[0]
+                elif isinstance(corr_raw, str):
+                    choice = [c.strip() for c in corr_raw.split(',')][0]
+                else:
+                    choice = orig
+
+            if choice != orig:
+                selected_suggestions.append({
+                    'original': orig,
+                    'correction': choice
+                })
+            
+        with gen_stop_placeholder.container():
+            st.button("중지", type="primary", key="stop_gen")
+            
+        loading_placeholder2 = st.empty()
+        with loading_placeholder2.container():
+            st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px;'>교정된 글을 생성하고 있습니다... <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
+
+        APPLY_PROMPT = """
+        당신은 전문 교정가입니다. 
+        사용자가 작성한 <원본 글>과 <승인한 수정 및 추천 표현들>을 제공받습니다.
+        **최우선 원칙**: AI가 문장 전체를 새로 쓰거나 구조를 변경하는 것을 절대 금지합니다. 사용자의 고유한 문체, 문장 구조, 그리고 **줄바꿈(엔터) 처리를 포함한 모든 원문의 단락 구분을 100% 그대로 유지**해야 합니다. 빈 줄(엔터) 하나라도 임의로 삭제하거나 통합하지 마세요.
+        오직 <승인한 목록>에 있는 단어/문구만 그 자리에서 정확히 교체하고, 다른 어휘나 문장 논리는 절대 임의로 바꾸지 마세요.
+        (단, 문체가 혼용된 경우에 한해 일관성 있게 마지막 맺음말을 자연스럽게 조정하세요.)
+        완성된 글 텍스트만 출력하세요. 다른 설명은 덧붙이지 마세요.
+        """
+            
+        user_content = f"<원본 글>\n{st.session_state.original_text}\n\n<승인한 수정 및 추천 표현들>\n"
+        for s in selected_suggestions:
+            user_content += f"- '{s.get('original', '')}' -> '{s.get('correction', '')}'\n"
+            
+        try:
+            api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("api_key_widget_main") or st.session_state.get("gemini_api_key")
+            if api_key_to_use == MASTER_KEY or st.session_state.get("is_admin", False):
+                try:
+                    api_key_to_use = st.secrets.get("GEMINI_API_KEY", "")
+                except FileNotFoundError:
+                    pass
+            
+            genai.configure(api_key=api_key_to_use)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            
+            prompt = f"{APPLY_PROMPT}\n\n{user_content}"
+            
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            ]
+            
+            apply_resp = model.generate_content(prompt, safety_settings=safety_settings)
+            st.session_state.main_text_input = apply_resp.text.strip()
+            st.session_state.suggestions = None
+            st.session_state.original_text = ""
+            st.session_state.final_text = ""
+            st.session_state.show_success = True
+            
+            # Rerun to show updated text in the main box
+            st.rerun()
+            
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
+                st.error("❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 완성하기 버튼을 눌러주세요.")
+            elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg:
+                st.error("❌ API 키가 유효하지 않습니다. 올바른 API 키를 입력해주세요.")
+            elif "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg:
+                st.error("❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다.")
+            else:
+                st.error(f"❌ 오류가 발생했습니다: {str(e)}\n\n(잠시 후 다시 시도해주세요.)")
+            
+        loading_placeholder2.empty()
+
+    annotated_text = html.escape(st.session_state.original_text)
     
     st.markdown('<div style="display: none;">', unsafe_allow_html=True)
     st.text_input("hidden_choices", value="{}", key="hidden_choices_input", label_visibility="collapsed")
@@ -966,6 +1070,18 @@ if st.session_state.suggestions is not None:
     
     st.markdown("""
     <style>
+        /* Hide the hidden_choices_input text box entirely */
+        div[data-testid="stTextInput"] {
+            display: none !important;
+        }
+        
+        /* Force tooltip visibility over container scroll boundaries */
+        section[data-testid="stMarkdownContainer"] {
+            overflow: visible !important;
+        }
+        .stMarkdown {
+            overflow: visible !important;
+        }
         .highlight-word {
             position: relative;
             cursor: pointer;
@@ -1193,107 +1309,3 @@ if st.session_state.suggestions is not None:
         </script>
     """, height=0)
     
-    col_reset, col_apply = st.columns([3, 7])
-    with col_reset:
-        if st.button("돌아가기 (계속 편집)"):
-            st.session_state.main_text_input = st.session_state.original_text
-            st.session_state.suggestions = None
-            st.session_state.final_text = ""
-            st.rerun()
-            
-    with col_apply:
-        gen_btn_col, gen_stop_col = st.columns([6, 4])
-        with gen_btn_col:
-            generate_clicked = st.button("모든 교정 제안을 적용하여 완성하기", type="primary")
-        with gen_stop_col:
-            gen_stop_placeholder = st.empty()
-            
-        if generate_clicked:
-            selected_suggestions = []
-            user_choices_str = st.session_state.get("hidden_choices_input", "{}")
-            try:
-                user_choices = json.loads(user_choices_str)
-            except:
-                user_choices = {}
-                
-            for i, sug in enumerate(all_sugs):
-                orig = sug.get('original', '')
-                choice = user_choices.get(str(i))
-                
-                if not choice:
-                    corr_raw = sug.get('correction', [])
-                    if isinstance(corr_raw, list) and len(corr_raw) > 0:
-                        choice = corr_raw[0]
-                    elif isinstance(corr_raw, str):
-                        choice = [c.strip() for c in corr_raw.split(',')][0]
-                    else:
-                        choice = orig
-
-                if choice != orig:
-                    selected_suggestions.append({
-                        'original': orig,
-                        'correction': choice
-                    })
-                
-            with gen_stop_placeholder.container():
-                st.button("중지", type="primary", key="stop_gen")
-                
-            loading_placeholder2 = st.empty()
-            with loading_placeholder2.container():
-                st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px;'>교정된 글을 생성하고 있습니다... <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
-
-            APPLY_PROMPT = """
-            당신은 전문 교정가입니다. 
-            사용자가 작성한 <원본 글>과 <승인한 수정 및 추천 표현들>을 제공받습니다.
-            **최우선 원칙**: AI가 문장 전체를 새로 쓰거나 구조를 변경하는 것을 절대 금지합니다. 사용자의 고유한 문체, 문장 구조, 그리고 **줄바꿈(엔터) 처리를 포함한 모든 원문의 단락 구분을 100% 그대로 유지**해야 합니다. 빈 줄(엔터) 하나라도 임의로 삭제하거나 통합하지 마세요.
-            오직 <승인한 목록>에 있는 단어/문구만 그 자리에서 정확히 교체하고, 다른 어휘나 문장 논리는 절대 임의로 바꾸지 마세요.
-            (단, 문체가 혼용된 경우에 한해 일관성 있게 마지막 맺음말을 자연스럽게 조정하세요.)
-            완성된 글 텍스트만 출력하세요. 다른 설명은 덧붙이지 마세요.
-            """
-                
-            user_content = f"<원본 글>\n{st.session_state.original_text}\n\n<승인한 수정 및 추천 표현들>\n"
-            for s in selected_suggestions:
-                user_content += f"- '{s.get('original', '')}' -> '{s.get('correction', '')}'\n"
-                
-            try:
-                api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("api_key_widget_main") or st.session_state.get("gemini_api_key")
-                if api_key_to_use == MASTER_KEY or st.session_state.get("is_admin", False):
-                    try:
-                        api_key_to_use = st.secrets.get("GEMINI_API_KEY", "")
-                    except FileNotFoundError:
-                        pass
-                
-                genai.configure(api_key=api_key_to_use)
-                model = genai.GenerativeModel('gemini-2.5-flash')
-                
-                prompt = f"{APPLY_PROMPT}\n\n{user_content}"
-                
-                safety_settings = [
-                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-                ]
-                
-                apply_resp = model.generate_content(prompt, safety_settings=safety_settings)
-                st.session_state.main_text_input = apply_resp.text.strip()
-                st.session_state.suggestions = None
-                st.session_state.original_text = ""
-                st.session_state.final_text = ""
-                st.session_state.show_success = True
-                
-                # Rerun to show updated text in the main box
-                st.rerun()
-                
-            except Exception as e:
-                error_msg = str(e).lower()
-                if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
-                    st.error("❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 완성하기 버튼을 눌러주세요.")
-                elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg:
-                    st.error("❌ API 키가 유효하지 않습니다. 올바른 API 키를 입력해주세요.")
-                elif "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg:
-                    st.error("❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다.")
-                else:
-                    st.error(f"❌ 오류가 발생했습니다: {str(e)}\n\n(잠시 후 다시 시도해주세요.)")
-                
-            loading_placeholder2.empty()
