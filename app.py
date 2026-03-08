@@ -775,6 +775,12 @@ if "show_success" not in st.session_state:
 if "main_text_input" not in st.session_state:
     st.session_state.main_text_input = ""
 
+if "do_analyze" not in st.session_state:
+    st.session_state.do_analyze = False
+
+def trigger_analysis():
+    st.session_state.do_analyze = True
+
 loading_placeholder_top = st.empty()
 
 if st.session_state.suggestions is None:
@@ -782,6 +788,12 @@ if st.session_state.suggestions is None:
         st.success("✨ 교정이 완료되어 아래 텍스트 창에 완성본이 반영되었습니다!")
         st.toast("교정이 완료되었습니다!", icon="🎉")
         st.session_state.show_success = False
+        
+    if not st.session_state.do_analyze:
+        with loading_placeholder_top.container():
+            col_btn, _ = st.columns([2, 8])
+            with col_btn:
+                st.button("교정하기", type="primary", on_click=trigger_analysis, use_container_width=True)
         
     user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
 
@@ -909,17 +921,6 @@ def analyze_text(text):
             st.error(f"❌ 오류가 발생했습니다: {str(e)}\n\n(서버 연결 문제일 경우 잠시 후 다시 시도해주세요.)")
         return None
 
-if "do_analyze" not in st.session_state:
-    st.session_state.do_analyze = False
-
-# Callback to trigger analysis natively
-def trigger_analysis():
-    st.session_state.do_analyze = True
-
-if st.session_state.suggestions is None:
-    col_btn, _ = st.columns([2, 8])
-    with col_btn:
-        st.button("교정하기", type="primary", on_click=trigger_analysis, use_container_width=True)
 
 if st.session_state.do_analyze:
     st.session_state.do_analyze = False # Reset immediately
@@ -948,6 +949,9 @@ if st.session_state.do_analyze:
         
         if suggestions is not None:
             st.session_state.suggestions = suggestions
+            st.rerun()
+        else:
+            # If suggestions is None (error occurred), rerun so the UI can reset and show the "교정하기" button again.
             st.rerun()
                 
 if st.session_state.suggestions is not None:
