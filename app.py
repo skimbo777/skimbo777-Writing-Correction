@@ -859,7 +859,20 @@ def analyze_text(text):
         st.error(f"AI 분석 실패. API 키가 정확한지 확인하시거나 잠시 후 다시 시도해주세요. 에러: {e}")
         return None
 
-if st.button("교정하기", type="primary"):
+if "do_analyze" not in st.session_state:
+    st.session_state.do_analyze = False
+
+# Callback to trigger analysis natively
+def trigger_analysis():
+    st.session_state.do_analyze = True
+
+col_btn, _ = st.columns([2, 8])
+with col_btn:
+    st.button("교정하기", type="primary", on_click=trigger_analysis, use_container_width=True)
+
+if st.session_state.do_analyze:
+    st.session_state.do_analyze = False # Reset immediately
+    
     if not st.session_state.get("authenticated", False):
         st.warning("우측 상단에서 API 키를 인증해주세요.")
     elif not user_text.strip():
@@ -872,11 +885,11 @@ if st.button("교정하기", type="primary"):
         
         loading_placeholder = st.empty()
         with loading_placeholder.container():
-            col1, col2 = st.columns([1, 4])
+            col1, col2 = st.columns([2, 8])
             with col1:
                 st.button("Stop 🛑", key="stop_analyze")
             with col2:
-                st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px;'>교정된 글을 분석하고 있습니다... (5~15초 소요될 수 있습니다) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
                 
         st.session_state.original_text = user_text
         suggestions = analyze_text(user_text)
@@ -884,6 +897,7 @@ if st.button("교정하기", type="primary"):
         
         if suggestions is not None:
             st.session_state.suggestions = suggestions
+            st.rerun()
                 
 if st.session_state.suggestions is not None:
     # Render interactive text area replacement
