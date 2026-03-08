@@ -927,9 +927,9 @@ if st.session_state.do_analyze:
     
     user_text_val = st.session_state.get("main_text_input", "") 
     if not user_text_val.strip():
-        st.warning("교정할 글을 입력해주세요.")
+        st.markdown('<div class="custom-desc" style="text-align: center; padding: 1rem; border-radius: 0.5rem; background-color: rgba(255, 243, 205, 0.6); color: #856404; margin-bottom: 1rem; border: 1px solid rgba(255, 243, 205, 1);">교정할 글을 입력해주세요.</div>', unsafe_allow_html=True)
     elif len(user_text_val) > 3000:
-        st.warning(f"⚠️ 한 번에 교정할 수 있는 글자 수를 초과했습니다. (현재 {len(user_text_val)}자 / 최대 권장 3,000자). 글을 나누어 교정해주세요.")
+        st.markdown(f'<div class="custom-desc" style="text-align: center; padding: 1rem; border-radius: 0.5rem; background-color: rgba(255, 243, 205, 0.6); color: #856404; margin-bottom: 1rem; border: 1px solid rgba(255, 243, 205, 1);">⚠️ 한 번에 교정할 수 있는 글자 수를 초과했습니다. (현재 {len(user_text_val)}자 / 최대 권장 3,000자). 글을 나누어 교정해주세요.</div>', unsafe_allow_html=True)
     else:
         # Reset state upon new analysis
         st.session_state.suggestions = None
