@@ -771,7 +771,10 @@ if "final_text" not in st.session_state:
     st.session_state.final_text = ""
 
 # Main Text Input
-user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed")
+if "main_text_input" not in st.session_state:
+    st.session_state.main_text_input = ""
+    
+user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
 
 # Shortcut script for Cmd/Ctrl + Enter
 st.components.v1.html("""
@@ -830,8 +833,15 @@ SYSTEM_PROMPT = """
 """
 
 def analyze_text(text):
-    api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("gemini_api_key")
-    if not api_key_to_use:
+    api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("api_key_widget_main") or st.session_state.get("gemini_api_key")
+    if api_key_to_use == MASTER_KEY:
+        try:
+            api_key_to_use = st.secrets.get("GEMINI_API_KEY", "")
+        except FileNotFoundError:
+            pass
+
+    if not api_key_to_use or not api_key_to_use.startswith("AIza"):
+        st.error("❌ 유효한 Gemini API 키가 없습니다. 우측 상단에 올바른 키를 입력해주세요.")
         return None
 
     try:
@@ -873,9 +883,8 @@ with col_btn:
 if st.session_state.do_analyze:
     st.session_state.do_analyze = False # Reset immediately
     
-    if not st.session_state.get("authenticated", False):
-        st.warning("우측 상단에서 API 키를 인증해주세요.")
-    elif not user_text.strip():
+    user_text_val = st.session_state.get("main_text_input", "") 
+    if not user_text_val.strip():
         st.warning("교정할 글을 입력해주세요.")
     else:
         # Reset state upon new analysis
@@ -891,8 +900,8 @@ if st.session_state.do_analyze:
             with col2:
                 st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
                 
-        st.session_state.original_text = user_text
-        suggestions = analyze_text(user_text)
+        st.session_state.original_text = user_text_val
+        suggestions = analyze_text(user_text_val)
         loading_placeholder.empty()
         
         if suggestions is not None:
@@ -1033,7 +1042,13 @@ if st.session_state.suggestions is not None:
                 user_content += f"- '{s.get('original', '')}' -> '{s.get('correction', '')}'\n"
                 
             try:
-                api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("gemini_api_key")
+                api_key_to_use = st.session_state.get("gemini_api_key_actual") or st.session_state.get("api_key_widget_main") or st.session_state.get("gemini_api_key")
+                if api_key_to_use == MASTER_KEY:
+                    try:
+                        api_key_to_use = st.secrets.get("GEMINI_API_KEY", "")
+                    except FileNotFoundError:
+                        pass
+                
                 client = genai.Client(api_key=api_key_to_use)
                 apply_resp = client.models.generate_content(
                     model='gemini-2.0-flash',
