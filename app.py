@@ -827,15 +827,16 @@ SYSTEM_PROMPT = """
 [서울광염교회 주요 글쓰기 규정 ("type": "correction")]
 1. 존칭: '시', '께서' 등의 존칭 선어말 어미와 겸양어는 하나님, 예수님, 성령님께만 사용합니다. 사람에게는 쓰지 않습니다. (예: 목사님이 하셨습니다(X) -> 목사님이 했습니다(O)) 직분 뒤에만 '님'을 씁니다.
 2. 주어 생략/반복: 반복되는 주어는 생략을 원칙으로 하며, 부득이 반복할 경우 '이름'은 빼고 '성+직분'(예: 홍 목사)으로 쓰거나, 성별 무관하게 대명사 '그'를 씁니다. (그녀, 그분 사용 금지).
-3. 띄어쓰기: 숫자, 화폐 단위, 명수는 띄어쓰지 않고 무조건 붙여 씁니다. (예: 3억원, 1만5천명).
+3. 띄어쓰기: 숫자, 화폐 단위, 명수는 띄어쓰지 않고 무조건 붙여 씁니다. (예: 3억원, 1만5천명). 그 외의 일반적인 한글 맞춤법 띄어쓰기 오류도 모두 꼼꼼하게 교정하세요.
 4. 문체: 한 글 안에서 해라체/하십시오체가 혼용되지 않도록 일관성 있게 하나로 통일.
 5. 호응 및 시제: 주어와 서술어 호응, 국어시제법 완벽 일치.
 
 [단어 단위 추천 - 문학적 어휘 제안 ("type": "suggestion")]
-문장에 쓰인 단어 중, 문맥상 더 아름다운 시적 표현이나 상황에 적합한 서정적/문학적 단어가 있다면 그 단어만 선별하여 리스트로 추천해 주세요. (예: 'original': '은혜가 큽니다', 'correction': '무궁합니다, 지극합니다'). 이런 문학적 어휘 제안은 "type": "suggestion" 으로 분류합니다.
+문장에 쓰인 단어 중, 문맥상 더 아름다운 시적 표현이나 상황에 적합한 서정적/문학적 단어가 있다면 그 단어만 선별하여 리스트로 추천해 주세요. (예: 'original': '은혜가 큽니다', 'correction': ['무궁합니다', '지극합니다']). 이런 문학적 어휘 제안은 "type": "suggestion" 으로 분류합니다.
 
 사용자의 글을 분석하여 찾은 모든 오류 및 문학적 어휘 제안을 반드시 아래의 순수 JSON 배열 형식으로만 반환하세요.
-형식: [{"type": "correction" 또는 "suggestion", "original": "해당 단어나 문구", "correction": "수정제안 단어 또는 추천단어들", "reason": "교정 이유 또는 추천 사유"}, ...]
+형식: [{"type": "correction" 또는 "suggestion", "original": "해당 단어나 문구", "correction": ["수정제안1", "수정제안2"], "reason": "교정 이유 또는 추천 사유"}, ...]
+반드시 "correction" 필드는 대괄호 `[]`를 사용하여 배열(리스트) 형태로 여러 개의 후보를 제안하세요. (후보가 하나라도 배열로 반환하세요.)
 에러나 제안이 없으면 반드시 빈 배열 `[]`만 반환하세요. 앞뒤 추가 설명 없이 오직 JSON 배열만 출력해야 합니다.
 """
 
@@ -949,6 +950,10 @@ if st.session_state.suggestions is not None:
     literary_suggestions = [s for s in st.session_state.suggestions if s.get("type") == "suggestion"]
     all_sugs = corrections + literary_suggestions
     
+    st.markdown('<div style="display: none;">', unsafe_allow_html=True)
+    st.text_input("hidden_choices", value="{}", key="hidden_choices_input", label_visibility="collapsed")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     st.markdown("""
     <style>
         .highlight-word {
@@ -996,22 +1001,60 @@ if st.session_state.suggestions is not None:
             border-color: #fff transparent transparent transparent;
             z-index: 10000;
         }
+        .highlight-word.resolved {
+            background-color: rgba(74, 139, 91, 0.2);
+            border-bottom: 2px solid #4a8b5b;
+            color: #2b5937;
+        }
+        .word-popup {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            z-index: 10001;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            min-width: 140px;
+            font-family: inherit;
+        }
+        .word-popup-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            color: #333;
+        }
+        .word-popup-option:hover {
+            background-color: #f0f0f0;
+        }
     </style>
     """, unsafe_allow_html=True)
     
     for i, sug in enumerate(all_sugs):
         orig = html.escape(sug.get('original', ''))
-        corr = html.escape(sug.get('correction', ''))
+        corr_raw = sug.get('correction', [])
+        if isinstance(corr_raw, str):
+            options = [c.strip() for c in corr_raw.split(',')]
+        else:
+            options = corr_raw
+        options = list(dict.fromkeys(options))
+        
         reason = html.escape(sug.get('reason', ''))
         sug_type = sug.get('type', 'correction')
         
+        corr_display = ", ".join(options)
+        
         if sug_type == 'suggestion':
-            tooltip_text = f"✨ 어휘 추천\\n💡 {corr}\\n({reason})"
+            tooltip_text = f"✨ 어휘 추천\\n💡 {corr_display}\\n({reason})\\n👉 클릭하여 단어 선택"
         else:
-            tooltip_text = f"🔍 수정 제안\\n❌ {orig}\\n✅ {corr}\\n({reason})"
+            tooltip_text = f"🔍 수정 제안\\n❌ {orig}\\n✅ {corr_display}\\n({reason})\\n👉 클릭하여 단어 선택"
             
+        options_json = html.escape(json.dumps(options).replace("'", "\\'"))
+        
         if orig and orig in annotated_text:
-            span_html = f'<span class="highlight-word" data-tooltip="{tooltip_text}">{orig}</span>'
+            span_html = f'<span class="highlight-word" data-index="{i}" data-orig="{orig}" data-options=\'{options_json}\' data-tooltip="{tooltip_text}">{orig}</span>'
             annotated_text = annotated_text.replace(orig, span_html, 1)
             
     pseudo_textarea_html = f'''
@@ -1034,6 +1077,97 @@ if st.session_state.suggestions is not None:
     '''
     st.markdown(pseudo_textarea_html, unsafe_allow_html=True)
     
+    st.components.v1.html("""
+        <script>
+            const parent = window.parent.document;
+            let currentPopup = null;
+            
+            const closePopup = () => {
+                if (currentPopup && currentPopup.parentNode) {
+                    currentPopup.parentNode.removeChild(currentPopup);
+                }
+                currentPopup = null;
+            };
+            
+            parent.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('highlight-word') && !e.target.classList.contains('word-popup-option')) {
+                    closePopup();
+                }
+            });
+            
+            const updateHiddenInput = (index, chosenText) => {
+                const input = parent.querySelector('input[aria-label="hidden_choices"]');
+                if (input) {
+                    let currentData = {};
+                    try {
+                        if (input.value) currentData = JSON.parse(input.value);
+                    } catch(e) {}
+                    
+                    currentData[index] = chosenText;
+                    
+                    let setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                    setter.call(input, JSON.stringify(currentData));
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            };
+            
+            const bindHighlights = () => {
+                const highlights = parent.querySelectorAll('.highlight-word:not([data-bound])');
+                highlights.forEach(span => {
+                    span.dataset.bound = "true";
+                    span.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        closePopup();
+                        
+                        const optionsStr = span.dataset.options;
+                        const orig = span.dataset.orig;
+                        const index = span.dataset.index;
+                        let options = [];
+                        try {
+                            options = JSON.parse(optionsStr);
+                        } catch(err) {}
+                        
+                        const popup = parent.createElement('div');
+                        popup.className = 'word-popup';
+                        
+                        const rect = span.getBoundingClientRect();
+                        popup.style.top = (rect.bottom + parent.defaultView.scrollY + 5) + 'px';
+                        popup.style.left = (rect.left + parent.defaultView.scrollX) + 'px';
+                        
+                        const addOption = (text, isOrig) => {
+                            const opt = parent.createElement('div');
+                            opt.className = 'word-popup-option';
+                            opt.innerHTML = isOrig ? `<span style="color:#888;">원본 유지:</span> ${text}` : `✨ ${text}`;
+                            
+                            opt.addEventListener('click', (ev) => {
+                                ev.stopPropagation();
+                                span.textContent = text;
+                                if (isOrig) {
+                                    span.classList.remove('resolved');
+                                } else {
+                                    span.classList.add('resolved');
+                                }
+                                updateHiddenInput(index, text);
+                                closePopup();
+                            });
+                            popup.appendChild(opt);
+                        };
+                        
+                        options.forEach(optText => {
+                            if (optText !== orig) addOption(optText, false);
+                        });
+                        addOption(orig, true);
+                        
+                        parent.body.appendChild(popup);
+                        currentPopup = popup;
+                    });
+                });
+            };
+            
+            setInterval(bindHighlights, 500);
+        </script>
+    """, height=0)
+    
     col_reset, col_apply = st.columns([3, 7])
     with col_reset:
         if st.button("새로운 글 작성하기 (초기화)"):
@@ -1050,8 +1184,32 @@ if st.session_state.suggestions is not None:
             gen_stop_placeholder = st.empty()
             
         if generate_clicked:
-            selected_suggestions = all_sugs
-            
+            selected_suggestions = []
+            user_choices_str = st.session_state.get("hidden_choices_input", "{}")
+            try:
+                user_choices = json.loads(user_choices_str)
+            except:
+                user_choices = {}
+                
+            for i, sug in enumerate(all_sugs):
+                orig = sug.get('original', '')
+                choice = user_choices.get(str(i))
+                
+                if not choice:
+                    corr_raw = sug.get('correction', [])
+                    if isinstance(corr_raw, list) and len(corr_raw) > 0:
+                        choice = corr_raw[0]
+                    elif isinstance(corr_raw, str):
+                        choice = [c.strip() for c in corr_raw.split(',')][0]
+                    else:
+                        choice = orig
+
+                if choice != orig:
+                    selected_suggestions.append({
+                        'original': orig,
+                        'correction': choice
+                    })
+                
             with gen_stop_placeholder.container():
                 st.button("Stop", type="primary", key="stop_gen")
                 
