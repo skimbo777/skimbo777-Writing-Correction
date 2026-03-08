@@ -470,11 +470,13 @@ with auth_placeholder:
                     pass
                 if global_key:
                     st.session_state.gemini_api_key_actual = global_key
+                st.rerun()
                     
             elif val.startswith("AIza"):
                 st.session_state.authenticated = True
                 st.session_state.is_admin = False
                 st.session_state.gemini_api_key_actual = val
+                st.rerun()
             else:
                 st.session_state.authenticated = False
                 st.session_state.is_admin = False
@@ -508,7 +510,7 @@ with auth_placeholder:
     else:    
         st.text_input("Key", value=st.session_state.get("gemini_api_key", ""), type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main", on_change=handle_login_submit)
         
-        st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급</a></div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급 ➔ 구글 로그인 ➔ 키 복사 및 상단 입력</a></div>""", unsafe_allow_html=True)
                 
         # JS to float the container to the top right and load from local storage
         st.components.v1.html("""
