@@ -1099,19 +1099,15 @@ if st.session_state.suggestions is not None:
         .highlight-word:hover, .highlight-word:active {
             background-color: rgba(255, 209, 217, 1);
         }
-        .highlight-word:hover::after, .highlight-word:active::after {
-            content: attr(data-tooltip);
+        .word-hover-tooltip {
             position: absolute;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
             background: #fff;
             color: #333;
             padding: 12px;
             border-radius: 8px;
             white-space: pre-wrap;
             font-size: 0.95rem;
-            z-index: 9999;
+            z-index: 10000;
             width: max-content;
             max-width: 320px;
             line-height: 1.5;
@@ -1119,17 +1115,18 @@ if st.session_state.suggestions is not None:
             border: 1px solid #eee;
             text-align: left;
             pointer-events: none;
+            font-family: inherit;
+            transform: translateX(-50%);
         }
-        .highlight-word:hover::before, .highlight-word:active::before {
+        .word-hover-tooltip::after {
             content: '';
             position: absolute;
-            bottom: 100%;
+            top: 100%;
             left: 50%;
             margin-left: -8px;
             border-width: 8px;
             border-style: solid;
             border-color: #fff transparent transparent transparent;
-            z-index: 10000;
         }
         .highlight-word.resolved {
             background-color: rgba(74, 139, 91, 0.2);
@@ -1226,12 +1223,20 @@ if st.session_state.suggestions is not None:
         <script>
             const parent = window.parent.document;
             let currentPopup = null;
+            let currentHoverTooltip = null;
             
             const closePopup = () => {
                 if (currentPopup && currentPopup.parentNode) {
                     currentPopup.parentNode.removeChild(currentPopup);
                 }
                 currentPopup = null;
+            };
+            
+            const closeHoverTooltip = () => {
+                if (currentHoverTooltip && currentHoverTooltip.parentNode) {
+                    currentHoverTooltip.parentNode.removeChild(currentHoverTooltip);
+                }
+                currentHoverTooltip = null;
             };
             
             parent.addEventListener('click', (e) => {
@@ -1260,6 +1265,34 @@ if st.session_state.suggestions is not None:
                 const highlights = parent.querySelectorAll('.highlight-word:not([data-bound])');
                 highlights.forEach(span => {
                     span.dataset.bound = "true";
+                    
+                    span.addEventListener('mouseenter', (e) => {
+                        if (currentPopup) return; // Don't show hover tooltip if a popup menu is already open
+                        const text = span.dataset.tooltip;
+                        if (!text) return;
+                        
+                        closeHoverTooltip();
+                        
+                        const tooltip = parent.createElement('div');
+                        tooltip.className = 'word-hover-tooltip';
+                        tooltip.innerHTML = text.replace(/\\n/g, '<br>');
+                        
+                        parent.body.appendChild(tooltip);
+                        
+                        // Measure and position it relative to the page viewport absolute top
+                        const rect = span.getBoundingClientRect();
+                        requestAnimationFrame(() => {
+                            const tooltipRect = tooltip.getBoundingClientRect();
+                            tooltip.style.top = (rect.top + parent.defaultView.scrollY - tooltipRect.height - 10) + 'px';
+                            tooltip.style.left = (rect.left + parent.defaultView.scrollX + (rect.width / 2)) + 'px';
+                        });
+                        
+                        currentHoverTooltip = tooltip;
+                    });
+                    
+                    span.addEventListener('mouseleave', () => {
+                        closeHoverTooltip();
+                    });
                     span.addEventListener('click', (e) => {
                         e.stopPropagation();
                         closePopup();
