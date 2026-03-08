@@ -282,50 +282,7 @@ def inject_custom_css():
             <div class="blob3"></div>
         </div>
     """, unsafe_allow_html=True)
-
-    # Admin verification logic
-    is_admin = False
-    try:
-        # Check Streamlit Community Cloud logged-in user email
-        if hasattr(st, "experimental_user") and st.experimental_user.email:
-            # Allow specific email or just any logged in user if they are the app creator
-            # (Assuming skimming the email or checking if it matches the creator's)
-            if st.experimental_user.email in ["skimbo777@gmail.com"] or "admin" in st.experimental_user.email.lower():
-                is_admin = True
-            # For strict security, we'll enable it for the app owner's email
-            # If the exact email is unknown, we check if st.experimental_user.email is not empty
-            # If the user requested "목사님의 계정", they can add their exact email here:
-            if st.experimental_user.email == "skimbo777@gmail.com":
-                is_admin = True
-    except Exception:
-        pass
-
-    # Optional query param backdoor for local testing or explicit admin link (?admin=true)
-    if not is_admin and "admin" in st.query_params and st.query_params["admin"] == "true":
-        is_admin = True
-        
-    if not is_admin:
-        # Hide sidebar completely for non-admins
-        st.markdown("""
-            <style>
-            [data-testid="collapsedControl"], 
-            [data-testid="stSidebarCollapsedControl"],
-            [data-testid="stSidebarNav"],
-            header[data-testid="stHeader"],
-            button[kind="header"] {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-                pointer-events: none !important;
-                width: 0 !important;
-                height: 0 !important;
-            }
-            div:has(> [data-testid="collapsedControl"]),
-            div:has(> [data-testid="stSidebarCollapsedControl"]) {
-                display: none !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+    # Logic moved to global scope
 
 def render_custom_header():
     st.markdown("""
@@ -347,6 +304,58 @@ def render_custom_header():
                 2. 국립국어원 표준어 규정 일반적용
             </div>
         </div>
+    """, unsafe_allow_html=True)
+
+# Authentication State (API Key check)
+saved_key = cookie_manager.get("gemini_api_key") or ""
+global_key = ""
+try:
+    global_key = st.secrets.get("GEMINI_API_KEY", "")
+except FileNotFoundError:
+    pass
+
+if "gemini_api_key" not in st.session_state:
+    st.session_state.gemini_api_key = global_key or saved_key
+    
+is_valid_key = st.session_state.gemini_api_key and st.session_state.gemini_api_key.startswith("AIza")
+
+# Admin verification logic
+is_admin = False
+try:
+    # Check Streamlit Community Cloud logged-in user email
+    if hasattr(st, "experimental_user") and st.experimental_user.email:
+        if st.experimental_user.email in ["skimbo777@gmail.com"] or "admin" in st.experimental_user.email.lower():
+            is_admin = True
+        if st.experimental_user.email == "skimbo777@gmail.com":
+            is_admin = True
+except Exception:
+    pass
+
+# Optional query param backdoor for local testing or explicit admin link (?admin=true)
+if not is_admin and "admin" in st.query_params and st.query_params["admin"] == "true":
+    is_admin = True
+    
+if not (is_admin or is_valid_key):
+    # Hide sidebar completely for non-admins
+    st.markdown("""
+        <style>
+        [data-testid="collapsedControl"], 
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="stSidebarNav"],
+        header[data-testid="stHeader"],
+        button[kind="header"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+        div:has(> [data-testid="collapsedControl"]),
+        div:has(> [data-testid="stSidebarCollapsedControl"]) {
+            display: none !important;
+        }
+        </style>
     """, unsafe_allow_html=True)
 
 inject_custom_css()
@@ -378,18 +387,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Authentication State
-saved_key = cookie_manager.get("gemini_api_key") or ""
-global_key = ""
-try:
-    global_key = st.secrets.get("GEMINI_API_KEY", "")
-except FileNotFoundError:
-    pass
-
-if "gemini_api_key" not in st.session_state:
-    st.session_state.gemini_api_key = global_key or saved_key
-
-is_valid_key = st.session_state.gemini_api_key and st.session_state.gemini_api_key.startswith("AIza")
+# Authentication State processing moved to top for sidebar logic
 
 # Render Auth UI in main flow but styled to float top right via CSS injector
 auth_placeholder = st.empty()
@@ -424,11 +422,58 @@ with auth_placeholder.container():
             </script>
         """, height=0)
     else:
+        st.markdown("""
+        <style>
+        [data-testid="stTextInput"] div[data-baseweb="input"] {
+            border-radius: 20px;
+            background-color: rgba(255,255,255,0.9);
+            border: 1px solid #e0e0e0;
+            padding: 0 10px;
+        }
+        [data-testid="stTextInput"] input {
+            font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
+            color: #666666 !important;
+            font-size: 0.9rem !important;
+            height: 36px !important;
+        }
+        [data-testid="stButton"] button {
+            border-radius: 20px !important;
+            height: 38px !important;
+            padding: 0 16px !important;
+            font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
+            font-weight: 600 !important;
+            background-color: #666666 !important;
+            color: #FAF9F6 !important;
+            border: none !important;
+            transition: all 0.2s;
+            margin-top: 0px !important;
+        }
+        [data-testid="stButton"] button:hover {
+            background-color: #A89574 !important;
+            color: white !important;
+        }
+        .key-link {
+            position: absolute;
+            bottom: -20px;
+            right: 0px;
+            font-size: 0.75rem;
+            color: #888;
+            white-space: nowrap;
+        }
+        .key-link a {
+            color: #A89574;
+            text-decoration: none;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
         col1, col2 = st.columns([7, 3])
         with col1:
-            api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="API Key 입력 (엔터)", label_visibility="collapsed", key="api_key_widget_main")
+            api_key_input = st.text_input("Gemini API Key", value=st.session_state.gemini_api_key, type="password", placeholder="API 인증키 (Enter)", label_visibility="collapsed", key="api_key_widget_main")
         with col2:
-            st.markdown("""<div style="margin-top: 2px; font-size: 0.8rem; color: #888; white-space: nowrap;"><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #A89574; text-decoration: none;">🔑 키 발급</a></div>""", unsafe_allow_html=True)
+            st.button("로그인", key="auth_submit", use_container_width=True)
+            
+        st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급</a></div>""", unsafe_allow_html=True)
             
         # JS to retrieve from local storage and handle Enter key login
         st.components.v1.html("""
