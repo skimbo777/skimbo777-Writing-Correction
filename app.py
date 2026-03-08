@@ -857,7 +857,7 @@ def analyze_text(text):
 
     try:
         genai.configure(api_key=api_key_to_use)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -1081,7 +1081,7 @@ if st.session_state.suggestions is not None:
                         pass
                 
                 genai.configure(api_key=api_key_to_use)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('gemini-2.5-flash')
                 
                 prompt = f"{APPLY_PROMPT}\n\n{user_content}"
                 
