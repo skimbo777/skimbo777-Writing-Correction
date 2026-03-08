@@ -1271,7 +1271,6 @@ if st.session_state.suggestions is not None:
                 st.session_state.suggestions = None
                 st.session_state.original_text = ""
                 st.session_state.final_text = ""
-                st.session_state.hidden_choices_input = "{}"
                 
                 # Rerun to show updated text in the main box
                 st.rerun()
