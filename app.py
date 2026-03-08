@@ -191,7 +191,7 @@ def inject_custom_css():
         .custom-title-container {
             text-align: center;
             margin-top: 3rem;
-            margin-bottom: 4rem;
+            margin-bottom: 2rem;
             position: relative;
             z-index: 10;
         }
@@ -1214,6 +1214,7 @@ if st.session_state.suggestions is not None:
         color: #333;
         font-family: inherit;
         box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        margin-top: -1.2rem;
         margin-bottom: 20px;
     ">{annotated_text}</div>
     '''
