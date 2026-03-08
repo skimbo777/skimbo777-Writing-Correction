@@ -510,7 +510,14 @@ with auth_placeholder:
     else:    
         st.text_input("Key", value=st.session_state.get("gemini_api_key", ""), type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main", on_change=handle_login_submit)
         
-        st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급 ➔ 구글 로그인 ➔ 키 복사 및 상단 입력</a></div>""", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="key-link" style="margin-bottom: 2px;">
+            <span style="color: #A89574; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.8rem; font-weight: 600;">API 키를 인증해주세요</span>
+        </div>
+        <div class="key-link" style="margin-top: 0;">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급 ➔ 구글 로그인 ➔ 키 복사 및 상단 입력</a>
+        </div>
+        """, unsafe_allow_html=True)
                 
         # JS to float the container to the top right and load from local storage
         st.components.v1.html("""
@@ -764,7 +771,38 @@ if "final_text" not in st.session_state:
     st.session_state.final_text = ""
 
 # Main Text Input
-user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요...", label_visibility="collapsed")
+user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed")
+
+# Shortcut script for Cmd/Ctrl + Enter
+st.components.v1.html("""
+    <script>
+        const parent = window.parent.document;
+        // Find textareas and bind
+        const bindShortcuts = () => {
+            const textareas = parent.querySelectorAll('textarea');
+            textareas.forEach(ta => {
+                if (!ta.dataset.shortcutBound) {
+                    ta.dataset.shortcutBound = "true";
+                    ta.addEventListener('keydown', function(e) {
+                        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                            e.preventDefault(); // prevent new line
+                            // Find '교정하기' button
+                            const buttons = Array.from(parent.querySelectorAll('button'));
+                            const correctBtn = buttons.find(b => b.innerText && b.innerText.includes('교정하기'));
+                            if (correctBtn) {
+                                correctBtn.click();
+                            }
+                        }
+                    });
+                }
+            });
+        };
+        // Retry a few times in case the DOM isn't fully ready
+        setTimeout(bindShortcuts, 500);
+        setTimeout(bindShortcuts, 1500);
+        setInterval(bindShortcuts, 3000);
+    </script>
+""", height=0)
 
 SYSTEM_PROMPT = """
 당신은 완벽한 전문 교정가입니다.
@@ -817,8 +855,8 @@ def analyze_text(text):
         return None
 
 if st.button("교정하기", type="primary"):
-    if not st.session_state.gemini_api_key.strip():
-        st.warning("사이드바에 Gemini API Key를 입력해주세요.")
+    if not st.session_state.get("authenticated", False):
+        pass
     elif not user_text.strip():
         st.warning("교정할 글을 입력해주세요.")
     else:
