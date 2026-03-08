@@ -377,6 +377,13 @@ render_custom_header()
 # Main Header & Auth Area
 # ==========================================
 
+# Use Session State extensively for auth
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if "is_admin" not in st.session_state:
+    st.session_state.is_admin = False
+
 # Top Right Auth UI Container
 auth_placeholder = st.container()
 with auth_placeholder:
@@ -434,29 +441,76 @@ with auth_placeholder:
             font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
             margin-bottom: 0 !important;
         }
+        
+        /* Make Streamlit's container for the auth elements transparent and right-aligned */
+        #auth-anchor {
+            display: none;
+        }
         </style>
     """, unsafe_allow_html=True)
     
-    def handle_login():
-        val = st.session_state.get("api_key_widget_main", "")
-        if val and val != saved_key and val != st.session_state.gemini_api_key:
+    # Callback triggered immediately when Enter is pressed in text_input
+    def handle_login_submit():
+        val = st.session_state.get("api_key_widget_main", "").strip()
+        if val:
+            # Save the key into session state and cookie
             st.session_state.gemini_api_key = val
             cookie_manager.set("gemini_api_key", val)
+            
+            # Re-evaluate authentication immediately
+            if val == MASTER_KEY:
+                st.session_state.authenticated = True
+                st.session_state.is_admin = True
+                
+                # Setup global key for admin if available
+                global_key = ""
+                try:
+                    global_key = st.secrets.get("GEMINI_API_KEY", "")
+                except FileNotFoundError:
+                    pass
+                if global_key:
+                    st.session_state.gemini_api_key_actual = global_key
+                    
+            elif val.startswith("AIza"):
+                st.session_state.authenticated = True
+                st.session_state.is_admin = False
+                st.session_state.gemini_api_key_actual = val
+            else:
+                st.session_state.authenticated = False
+                st.session_state.is_admin = False
 
-    if is_valid_key:
-        badge_text = "제작자 모드" if is_admin else "인증 완료"
-        badge_color = "#A89574" if is_admin else "#4a8b5b"
+    # Also automatically evaluate saved_key on mount if unauthenticated
+    if not st.session_state.get("authenticated", False):
+        if saved_key == MASTER_KEY:
+            st.session_state.authenticated = True
+            st.session_state.is_admin = True
+            global_key = ""
+            try:
+                global_key = st.secrets.get("GEMINI_API_KEY", "")
+            except FileNotFoundError:
+                pass
+            if global_key:
+                st.session_state.gemini_api_key_actual = global_key
+        elif saved_key and saved_key.startswith("AIza"):
+            st.session_state.authenticated = True
+            st.session_state.is_admin = False
+            st.session_state.gemini_api_key_actual = saved_key
+
+    # Render UI conditionally
+    if st.session_state.get("authenticated", False):
+        badge_text = "제작자 모드" if st.session_state.get("is_admin", False) else "인증 완료"
+        badge_color = "#A89574" if st.session_state.get("is_admin", False) else "#4a8b5b"
         st.markdown(f"""
             <div style="background-color: rgba(255,255,255,0.8); padding: 4px 12px; border-radius: 20px; border: 1px solid #e0dcd5; backdrop-filter: blur(5px);">
                 <span style="color: {badge_color}; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.85rem; font-weight: 600;">✅ {badge_text}</span>
             </div>
         """, unsafe_allow_html=True)
     else:    
-        api_key_input = st.text_input("Key", value=st.session_state.gemini_api_key, type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main", on_change=handle_login)
+        st.text_input("Key", value=st.session_state.get("gemini_api_key", ""), type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main", on_change=handle_login_submit)
         
         st.markdown("""<div class="key-link"><a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급</a></div>""", unsafe_allow_html=True)
                 
-        # JS for precise absolute positioning and Enter key login
+        # JS to float the container to the top right and load from local storage
         st.components.v1.html("""
             <script>
                 // Position the container
@@ -469,39 +523,42 @@ with auth_placeholder:
                         container.style.right = '2rem';
                         container.style.width = '240px';
                         container.style.zIndex = '999999';
-                        // clear background
                         container.style.background = 'transparent';
                         container.style.boxShadow = 'none';
                         container.style.border = 'none';
                     }
                 }
                 
-                // Auto submit logic
-                const p = window.parent;
+                // Auto submit from LocalStorage
                 const savedKey = window.localStorage.getItem('gemini_api_key_local');
-                
-                // find input in the SAME container
-                if (anchor) {
+                if (anchor && savedKey) {
                     const container = anchor.closest('[data-testid="stVerticalBlock"]');
                     if(container) {
                         const inputs = container.querySelectorAll('input[type="password"]');
                         for (let input of inputs) {
-                            // Auto-fill from localStorage if available and empty
-                            if (savedKey && !input.value) {
-                                let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                                nativeInputValueSetter.call(input, savedKey);
+                            if (!input.value && savedKey.length > 0) {
+                                let setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                                setter.call(input, savedKey);
                                 input.dispatchEvent(new Event('input', { bubbles: true }));
                                 
-                                // Force a tiny delay then trigger Enter to submit instantly
                                 setTimeout(() => {
+                                    input.blur();
                                     const enterEvent = new window.parent.KeyboardEvent('keydown', {
                                         key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
                                     });
                                     input.dispatchEvent(enterEvent);
                                 }, 300);
                             }
-                            
-                            // Add save logic to enter key
+                        }
+                    }
+                }
+                
+                // Track manual entry into LocalStorage
+                if (anchor) {
+                    const container = anchor.closest('[data-testid="stVerticalBlock"]');
+                    if(container) {
+                        const inputs = container.querySelectorAll('input[type="password"]');
+                        for (let input of inputs) {
                             if (!input.dataset.enterBound) {
                                 input.dataset.enterBound = "true";
                                 input.addEventListener('keydown', function(event) {
@@ -509,13 +566,6 @@ with auth_placeholder:
                                         if (this.value) {
                                             window.localStorage.setItem('gemini_api_key_local', this.value);
                                         }
-                                        setTimeout(() => {
-                                            this.blur(); // Remove focus to force streamlit to sync value
-                                            const enterEvent = new window.parent.KeyboardEvent('keydown', {
-                                                key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
-                                            });
-                                            this.dispatchEvent(enterEvent);
-                                        }, 50);
                                     }
                                 });
                             }
@@ -525,8 +575,9 @@ with auth_placeholder:
             </script>
         """, height=0)
         
-        val_check = st.session_state.get("api_key_widget_main", "")
-        if val_check and not (val_check.startswith("AIza") or val_check == MASTER_KEY):
+        # Display validation error check using session state val
+        val_check = st.session_state.get("gemini_api_key", "")
+        if val_check and not (val_check.startswith("AIza") or val_check == MASTER_KEY) and not st.session_state.get("authenticated", False):
             st.error("❌ 잘못된 인증키")
 
 
