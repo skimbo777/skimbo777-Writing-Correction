@@ -768,11 +768,19 @@ if "original_text" not in st.session_state:
     st.session_state.original_text = ""
 if "final_text" not in st.session_state:
     st.session_state.final_text = ""
+    
+if "show_success" not in st.session_state:
+    st.session_state.show_success = False
 
 if "main_text_input" not in st.session_state:
     st.session_state.main_text_input = ""
 
 if st.session_state.suggestions is None:
+    if st.session_state.show_success:
+        st.success("✨ 교정이 완료되어 아래 텍스트 창에 완성본이 반영되었습니다!")
+        st.toast("교정이 완료되었습니다!", icon="🎉")
+        st.session_state.show_success = False
+        
     user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
 
     # Shortcut script for Cmd/Ctrl + Enter
@@ -1271,6 +1279,7 @@ if st.session_state.suggestions is not None:
                 st.session_state.suggestions = None
                 st.session_state.original_text = ""
                 st.session_state.final_text = ""
+                st.session_state.show_success = True
                 
                 # Rerun to show updated text in the main box
                 st.rerun()
