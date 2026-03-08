@@ -775,6 +775,8 @@ if "show_success" not in st.session_state:
 if "main_text_input" not in st.session_state:
     st.session_state.main_text_input = ""
 
+loading_placeholder_top = st.empty()
+
 if st.session_state.suggestions is None:
     if st.session_state.show_success:
         st.success("✨ 교정이 완료되어 아래 텍스트 창에 완성본이 반영되었습니다!")
@@ -933,8 +935,7 @@ if st.session_state.do_analyze:
         st.session_state.final_text = ""
         st.session_state.original_text = ""
         
-        loading_placeholder = st.empty()
-        with loading_placeholder.container():
+        with loading_placeholder_top.container():
             col1, col2 = st.columns([2, 8])
             with col1:
                 st.button("Stop 🛑", key="stop_analyze")
@@ -943,7 +944,7 @@ if st.session_state.do_analyze:
                 
         st.session_state.original_text = user_text_val
         suggestions = analyze_text(user_text_val)
-        loading_placeholder.empty()
+        loading_placeholder_top.empty()
         
         if suggestions is not None:
             st.session_state.suggestions = suggestions
