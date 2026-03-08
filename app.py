@@ -54,35 +54,50 @@ def inject_custom_css():
             background: transparent !important;
             opacity: 1 !important;
             visibility: visible !important;
+            pointer-events: none !important;
+        }
+        header[data-testid="stHeader"] * {
+            pointer-events: auto !important;
+            visibility: visible !important;
         }
         
         /* Aggressively Force Sidebar Toggle Button to be Always Visible */
         [data-testid="collapsedControl"], 
         [data-testid="stSidebarCollapsedControl"],
+        [data-testid="stSidebarNav"],
         button[kind="header"] {
             display: block !important;
             opacity: 1 !important;
             visibility: visible !important;
             color: #8c7b5f !important;
             background-color: transparent !important;
-            transform: scale(1.2) translate(8px, 8px) !important;
+            transform: scale(1.3) translate(8px, 8px) !important;
             transition: none !important;
-            z-index: 999999 !important;
+            z-index: 9999999 !important;
             pointer-events: auto !important;
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
         }
         [data-testid="collapsedControl"] svg,
         [data-testid="stSidebarCollapsedControl"] svg,
+        [data-testid="stSidebarNav"] svg,
         button[kind="header"] svg {
             fill: #8c7b5f !important;
             color: #8c7b5f !important;
-            width: 2rem !important;
-            height: 2rem !important;
+            width: 2.2rem !important;
+            height: 2.2rem !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         [data-testid="collapsedControl"]:hover *,
         [data-testid="stSidebarCollapsedControl"]:hover *,
+        [data-testid="stSidebarNav"]:hover *,
         button[kind="header"]:hover * {
             fill: #5a4b32 !important;
             color: #5a4b32 !important;
@@ -100,10 +115,12 @@ def inject_custom_css():
         }
         
         div:has(> [data-testid="collapsedControl"]),
-        div:has(> [data-testid="stSidebarCollapsedControl"]) {
+        div:has(> [data-testid="stSidebarCollapsedControl"]),
+        div:has(> [data-testid="stSidebarNav"]) {
             opacity: 1 !important;
             visibility: visible !important;
             display: block !important;
+            pointer-events: auto !important;
         }
         
         /* Background Blobs Setup */
