@@ -936,9 +936,6 @@ if st.session_state.do_analyze:
     if not user_text_val.strip():
         st.session_state.input_error = "교정할 글을 입력해주세요."
         st.rerun()
-    elif len(user_text_val) > 3000:
-        st.session_state.input_error = f"⚠️ 한 번에 교정할 수 있는 글자 수를 초과했습니다. (현재 {len(user_text_val)}자 / 최대 권장 3,000자). 글을 나누어 교정해주세요."
-        st.rerun()
     else:
         # Reset state upon new analysis
         st.session_state.suggestions = None
