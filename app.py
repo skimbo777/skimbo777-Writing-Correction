@@ -3,7 +3,8 @@ import asyncio
 import json
 import extra_streamlit_components as stx
 import html
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 cookie_manager = stx.CookieManager(key="cookie_manager")
 
@@ -886,18 +887,21 @@ def analyze_text(text):
         return None
 
     try:
-        genai.configure(api_key=api_key_to_use)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        client = genai.Client(api_key=api_key_to_use)
         
         safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
         ]
         
         prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
-        response = model.generate_content(prompt, safety_settings=safety_settings)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(safety_settings=safety_settings)
+        )
         content = response.text.strip()
         
         start_idx = content.find('[')
@@ -1037,19 +1041,22 @@ if st.session_state.suggestions is not None:
                 except FileNotFoundError:
                     pass
             
-            genai.configure(api_key=api_key_to_use)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            client = genai.Client(api_key=api_key_to_use)
             
             prompt = f"{APPLY_PROMPT}\n\n{user_content}"
             
             safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
             ]
             
-            apply_resp = model.generate_content(prompt, safety_settings=safety_settings)
+            apply_resp = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=prompt,
+                config=types.GenerateContentConfig(safety_settings=safety_settings)
+            )
             st.session_state.main_text_input = apply_resp.text.strip()
             st.session_state.suggestions = None
             st.session_state.original_text = ""
