@@ -929,7 +929,7 @@ def analyze_text(text):
         elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg or "api_key_invalid" in error_msg or "unauthorized" in error_msg:
             st.session_state.input_error = "❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요."
         elif "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg:
-            st.session_state.input_error = "❌ 구글 안전 정리규에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요."
+            st.session_state.input_error = "❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요."
         elif "json format" in error_msg:
             st.session_state.input_error = "❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요."
         else:
