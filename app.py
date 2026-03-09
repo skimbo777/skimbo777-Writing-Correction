@@ -923,22 +923,17 @@ def analyze_text(text):
             raise ValueError("Invalid JSON format from Gemini.")
     except Exception as e:
         error_msg = str(e).lower()
+        full_error = str(e)
         if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
-            st.error("❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요.")
-        elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg:
-            st.error("❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요.")
-            if st.button("🔑 인증키 다시 입력하기", key="reset_key_btn1"):
-                st.session_state.authenticated = False
-                st.session_state.gemini_api_key_actual = ""
-                st.session_state.gemini_api_key = ""
-                cookie_manager.delete("gemini_api_key")
-                st.rerun()
+            st.session_state.input_error = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요."
+        elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg or "api_key_invalid" in error_msg or "unauthorized" in error_msg:
+            st.session_state.input_error = "❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요."
         elif "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg:
-            st.error("❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요.")
+            st.session_state.input_error = "❌ 구글 안전 정리규에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요."
         elif "json format" in error_msg:
-            st.error("❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요.")
+            st.session_state.input_error = "❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요."
         else:
-            st.error(f"❌ 오류가 발생했습니다: {str(e)}\n\n(서버 연결 문제일 경우 잠시 후 다시 시도해주세요.)")
+            st.session_state.input_error = f"❌ 오류가 발생했습니다: {full_error}"
         return None
 
 
@@ -970,7 +965,7 @@ if st.session_state.do_analyze:
             st.session_state.suggestions = suggestions
             st.rerun()
         else:
-            # If suggestions is None (error occurred), rerun so the UI can reset and show the "교정하기" button again.
+            # Error stored in input_error — rerun to show it via the persistent error box
             st.rerun()
                 
 if st.session_state.suggestions is not None:
