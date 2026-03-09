@@ -907,7 +907,7 @@ def analyze_text(text):
         
         prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.0-flash',
             contents=prompt,
             config=types.GenerateContentConfig(safety_settings=safety_settings)
         )
@@ -1057,7 +1057,7 @@ if st.session_state.suggestions is not None:
             ]
             
             apply_resp = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.0-flash',
                 contents=prompt,
                 config=types.GenerateContentConfig(safety_settings=safety_settings)
             )
