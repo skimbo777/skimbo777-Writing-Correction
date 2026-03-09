@@ -507,7 +507,7 @@ with auth_placeholder:
                 <span style="color: {badge_color}; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.85rem; font-weight: 600;">✅ {badge_text}</span>
             </div>
         """, unsafe_allow_html=True)
-    else:    
+    else:
         st.text_input("Key", value=st.session_state.get("gemini_api_key", ""), type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main", on_change=handle_login_submit)
         
         st.markdown("""
@@ -524,17 +524,22 @@ with auth_placeholder:
             <div>④ 위 입력창에 붙여넣기 후 <b style="color:#A89574;">Enter</b></div>
         </div>
         """, unsafe_allow_html=True)
-                
-        # JS to float the container to the top right and load from local storage
-        st.components.v1.html("""
-            <script>
-                // Position the container
+
+        # Display validation error check using session state val
+        val_check = st.session_state.get("gemini_api_key", "")
+        if val_check and not (val_check.startswith("AIza") or val_check == MASTER_KEY) and not st.session_state.get("authenticated", False):
+            st.error("❌ 잘못된 인증키")
+
+    # Always position the auth container at top-right (works for both badge and input)
+    st.components.v1.html("""
+        <script>
+            const positionAuthContainer = () => {
                 const anchor = window.parent.document.getElementById('auth-anchor');
                 if (anchor) {
                     const container = anchor.closest('[data-testid="stVerticalBlock"]');
                     if (container) {
                         container.style.position = 'absolute';
-                        container.style.top = '3.5rem'; 
+                        container.style.top = '3.5rem';
                         container.style.right = '2rem';
                         container.style.width = '240px';
                         container.style.zIndex = '999999';
@@ -543,57 +548,55 @@ with auth_placeholder:
                         container.style.border = 'none';
                     }
                 }
-                
-                // Auto submit from LocalStorage
-                const savedKey = window.localStorage.getItem('gemini_api_key_local');
-                if (anchor && savedKey) {
-                    const container = anchor.closest('[data-testid="stVerticalBlock"]');
-                    if(container) {
-                        const inputs = container.querySelectorAll('input[type="password"]');
-                        for (let input of inputs) {
-                            if (!input.value && savedKey.length > 0) {
-                                let setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                                setter.call(input, savedKey);
-                                input.dispatchEvent(new Event('input', { bubbles: true }));
-                                
-                                setTimeout(() => {
-                                    input.blur();
-                                    const enterEvent = new window.parent.KeyboardEvent('keydown', {
-                                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
-                                    });
-                                    input.dispatchEvent(enterEvent);
-                                }, 300);
-                            }
-                        }
-                    }
-                }
-                
-                // Track manual entry into LocalStorage
-                if (anchor) {
-                    const container = anchor.closest('[data-testid="stVerticalBlock"]');
-                    if(container) {
-                        const inputs = container.querySelectorAll('input[type="password"]');
-                        for (let input of inputs) {
-                            if (!input.dataset.enterBound) {
-                                input.dataset.enterBound = "true";
-                                input.addEventListener('keydown', function(event) {
-                                    if (event.key === 'Enter') {
-                                        if (this.value) {
-                                            window.localStorage.setItem('gemini_api_key_local', this.value);
-                                        }
-                                    }
+            };
+            positionAuthContainer();
+            setTimeout(positionAuthContainer, 300);
+
+            // Auto submit from LocalStorage
+            const anchor = window.parent.document.getElementById('auth-anchor');
+            const savedKey = window.localStorage.getItem('gemini_api_key_local');
+            if (anchor && savedKey) {
+                const container = anchor.closest('[data-testid="stVerticalBlock"]');
+                if(container) {
+                    const inputs = container.querySelectorAll('input[type="password"]');
+                    for (let input of inputs) {
+                        if (!input.value && savedKey.length > 0) {
+                            let setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                            setter.call(input, savedKey);
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            setTimeout(() => {
+                                input.blur();
+                                const enterEvent = new window.parent.KeyboardEvent('keydown', {
+                                    key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
                                 });
-                            }
+                                input.dispatchEvent(enterEvent);
+                            }, 300);
                         }
                     }
                 }
-            </script>
-        """, height=0)
-        
-        # Display validation error check using session state val
-        val_check = st.session_state.get("gemini_api_key", "")
-        if val_check and not (val_check.startswith("AIza") or val_check == MASTER_KEY) and not st.session_state.get("authenticated", False):
-            st.error("❌ 잘못된 인증키")
+            }
+
+            // Track manual entry into LocalStorage
+            if (anchor) {
+                const container = anchor.closest('[data-testid="stVerticalBlock"]');
+                if(container) {
+                    const inputs = container.querySelectorAll('input[type="password"]');
+                    for (let input of inputs) {
+                        if (!input.dataset.enterBound) {
+                            input.dataset.enterBound = "true";
+                            input.addEventListener('keydown', function(event) {
+                                if (event.key === 'Enter') {
+                                    if (this.value) {
+                                        window.localStorage.setItem('gemini_api_key_local', this.value);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        </script>
+    """, height=0)
 
 
 # Sidebar layout (Only shown for Admin per CSS logic above)
