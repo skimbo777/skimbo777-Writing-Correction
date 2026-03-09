@@ -511,11 +511,17 @@ with auth_placeholder:
         st.text_input("Key", value=st.session_state.get("gemini_api_key", ""), type="password", placeholder="API 또는 마스터키 (Enter)", label_visibility="collapsed", key="api_key_widget_main", on_change=handle_login_submit)
         
         st.markdown("""
-        <div class="key-link" style="margin-bottom: 2px;">
+        <div class="key-link" style="margin-bottom: 4px;">
             <span style="color: #A89574; font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.8rem; font-weight: 600;">API 키를 인증해주세요</span>
         </div>
-        <div class="key-link" style="margin-top: 0;">
-            <a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 키 발급 ➔ 구글 로그인 ➔ 키 복사 및 상단 입력</a>
+        <div class="key-link" style="margin-top: 0; margin-bottom: 2px;">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank">🔑 무료 API 키 발급 바로가기</a>
+        </div>
+        <div style="font-family: 'Pretendard Variable', Pretendard, sans-serif; font-size: 0.75rem; color: #8a8178; line-height: 1.7; margin-top: 4px; padding-left: 2px;">
+            <div>① 위 링크 클릭 → 구글 계정으로 로그인</div>
+            <div>② <b style="color:#A89574;">Create API key</b> 버튼 클릭</div>
+            <div>③ 생성된 키(<code style="font-size:0.72rem; background:#f5f0eb; padding:0 3px; border-radius:3px;">AIza...</code>)를 복사</div>
+            <div>④ 위 입력창에 붙여넣기 후 <b style="color:#A89574;">Enter</b></div>
         </div>
         """, unsafe_allow_html=True)
                 
