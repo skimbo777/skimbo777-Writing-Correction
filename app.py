@@ -809,23 +809,13 @@ if st.session_state.suggestions is None:
         st.session_state.show_success = False
         
     with loading_placeholder_top.container():
-        col_btn, col_msg = st.columns([2, 8])
-        with col_btn:
-            if not st.session_state.do_analyze:
-                st.button("교정하기", type="primary", on_click=trigger_analysis, use_container_width=True)
-            else:
-                # During analysis, analyze_text will populate this container via loading_placeholder_top
-                pass
-        with col_msg:
-            if st.session_state.input_error:
-                st.markdown(f'<div style="background-color: rgba(255, 243, 205, 0.6); color: #856404; padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(255, 243, 205, 1); font-size: 0.85rem; display: flex; align-items: center; min-height: 42px;">{st.session_state.input_error}</div>', unsafe_allow_html=True)
+        if not st.session_state.do_analyze:
+            st.button("교정하기", type="secondary", on_click=trigger_analysis)
+        # During analysis, analyze_text will populate this placeholder with button+status
+        if st.session_state.input_error:
+            st.markdown(f'<div style="background-color: rgba(255, 243, 205, 0.6); color: #856404; padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(255, 243, 205, 1); font-size: 0.85rem; margin-top: 8px;">{st.session_state.input_error}</div>', unsafe_allow_html=True)
         
     user_text = st.text_area("main_input", height=450, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
-
-    # Clear Input Button
-    c1, c2, _ = st.columns([2, 2, 6])
-    with c1:
-        st.button("입력창 초기화", use_container_width=True, on_click=clear_input)
 
     # Shortcut script for Cmd/Ctrl + Enter
     st.components.v1.html("""
