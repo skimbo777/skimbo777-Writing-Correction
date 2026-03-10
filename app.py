@@ -914,7 +914,16 @@ def analyze_text(text, countdown_placeholder=None):
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            _cd.empty()
+            with _cd.container():
+                col1, col2 = st.columns([2, 8])
+                with col1:
+                    if st.button("중지", type="primary", key=f"stop_analyze_{attempt}"):
+                        st.session_state.do_analyze = False
+                        st.session_state.input_error = None
+                        st.rerun()
+                with col2:
+                    st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
+            
             response = client.models.generate_content(
                 model='gemini-2.0-flash',
                 contents=prompt,
@@ -949,15 +958,23 @@ def analyze_text(text, countdown_placeholder=None):
             if attempt < MAX_RETRIES:
                 wait_secs = 30 if is_quota else 10
                 for remaining in range(wait_secs, 0, -1):
-                    _cd.markdown(
-                        f"""<div style='font-size:1.05rem; color:#444; font-weight:600; padding:0.4rem 0; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;'>
-                        <span>✏️ 교정 중입니다... (Processing...)</span>
-                        <span style='background:rgba(255,243,205,0.95); color:#856404; padding:0.2rem 0.8rem; border-radius:0.5rem; border:1px solid rgba(220,190,80,0.6); font-size:0.88rem; font-weight:500; white-space:nowrap;'>
-                        ⏳ {remaining}초 후 자동 재시도 ({attempt}/{MAX_RETRIES}회차)
-                        </span>
-                        </div>""",
-                        unsafe_allow_html=True
-                    )
+                    with _cd.container():
+                        col1, col2 = st.columns([2, 8])
+                        with col1:
+                            if st.button("중지", type="primary", key=f"stop_retry_{attempt}_{remaining}"):
+                                st.session_state.do_analyze = False
+                                st.session_state.input_error = None
+                                st.rerun()
+                        with col2:
+                            st.markdown(
+                                f"""<div style='font-size:1.05rem; color:#444; font-weight:600; padding:0.4rem 0; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;'>
+                                <span>✏️ 교정 중입니다... (Processing...)</span>
+                                <span style='background:rgba(255,243,205,0.95); color:#856404; padding:0.2rem 0.8rem; border-radius:0.5rem; border:1px solid rgba(220,190,80,0.6); font-size:0.88rem; font-weight:500; white-space:nowrap;'>
+                                ⏳ {remaining}초 후 자동 재시도 ({attempt}/{MAX_RETRIES}회차)
+                                </span>
+                                </div>""",
+                                unsafe_allow_html=True
+                            )
                     time.sleep(1)
             else:
                 _cd.empty()
@@ -983,21 +1000,8 @@ if st.session_state.do_analyze:
         st.session_state.final_text = ""
         st.session_state.original_text = ""
         
-        with loading_placeholder_top.container():
-            col1, col2 = st.columns([2, 8])
-            with col1:
-                st.button("중지", type="primary", key="stop_analyze")
-            with col2:
-                st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
-                
-        # Create a single row for both the button/loading and retry messages
-        col_btn, col_msg = st.columns([2, 8])
-        with col_btn:
-             # This space is usually occupied by the "Analyze" button, but during analysis, 
-             # the loading_placeholder_top will show the "Stop" button and "Processing" message.
-             # We use the same placeholder for both to keep them on the same line.
-             pass
-        
+        # The button and status will be managed inside analyze_text via loading_placeholder_top
+        st.session_state.original_text = user_text_val
         suggestions = analyze_text(user_text_val, countdown_placeholder=loading_placeholder_top)
         loading_placeholder_top.empty()
         
