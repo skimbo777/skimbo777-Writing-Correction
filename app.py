@@ -880,7 +880,7 @@ SYSTEM_PROMPT = """
 에러나 제안이 없으면 반드시 빈 배열 `[]`만 반환하세요. 앞뒤 추가 설명 없이 오직 JSON 배열만 출력해야 합니다.
 """
 
-def analyze_text(text):
+def analyze_text(text, countdown_placeholder=None):
     if not st.session_state.get("authenticated", False):
         st.warning("❌ 우측 상단에서 인증을 먼저 완료해주세요.")
         return None
@@ -907,11 +907,11 @@ def analyze_text(text):
     ]
     prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
 
-    countdown_placeholder = st.empty()
+    _cd = countdown_placeholder if countdown_placeholder is not None else st.empty()
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            countdown_placeholder.empty()
+            _cd.empty()
             response = client.models.generate_content(
                 model='gemini-2.0-flash',
                 contents=prompt,
@@ -934,7 +934,7 @@ def analyze_text(text):
 
             # Don't retry on non-transient errors
             if is_api_key or is_safety or is_json:
-                countdown_placeholder.empty()
+                _cd.empty()
                 if is_api_key:
                     st.session_state.input_error = "❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요."
                 elif is_safety:
@@ -946,21 +946,21 @@ def analyze_text(text):
             if attempt < MAX_RETRIES:
                 wait_secs = 30 if is_quota else 10
                 for remaining in range(wait_secs, 0, -1):
-                    countdown_placeholder.markdown(
+                    _cd.markdown(
                         f"""<div style='text-align:center; padding:0.6rem; border-radius:0.5rem; background:rgba(255,243,205,0.7); color:#856404; border:1px solid rgba(255,238,170,1); font-size:0.9rem; margin-bottom:0.5rem;'>
-                        ⏳ 사용량 초과 감지. <b>{remaining}의</b> 후 자동 재시도합니다... ({attempt}/{MAX_RETRIES}회차)
+                        ⏳ 사용량 초과 감지. <b>{remaining}초</b> 후 자동 재시도합니다... ({attempt}/{MAX_RETRIES}회차)
                         </div>""",
                         unsafe_allow_html=True
                     )
                     time.sleep(1)
             else:
-                countdown_placeholder.empty()
+                _cd.empty()
                 if is_quota:
                     st.session_state.input_error = "❌ 사용량 초과로 3회 재시도 후에도 실패했습니다. 잠시 후 다시 [교정하기]를 눌러주세요."
                 else:
                     st.session_state.input_error = f"❌ 3당재시도 후에도 오류가 발생했습니다: {full_error}"
                 return None
-    countdown_placeholder.empty()
+    _cd.empty()
     return None
 
 
@@ -985,7 +985,7 @@ if st.session_state.do_analyze:
                 st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
                 
         st.session_state.original_text = user_text_val
-        suggestions = analyze_text(user_text_val)
+        suggestions = analyze_text(user_text_val, countdown_placeholder=loading_placeholder_top)
         loading_placeholder_top.empty()
         
         if suggestions is not None:
