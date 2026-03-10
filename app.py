@@ -947,8 +947,11 @@ def analyze_text(text, countdown_placeholder=None):
                 wait_secs = 30 if is_quota else 10
                 for remaining in range(wait_secs, 0, -1):
                     _cd.markdown(
-                        f"""<div style='text-align:center; padding:0.6rem; border-radius:0.5rem; background:rgba(255,243,205,0.7); color:#856404; border:1px solid rgba(255,238,170,1); font-size:0.9rem; margin-bottom:0.5rem;'>
-                        ⏳ 사용량 초과 감지. <b>{remaining}초</b> 후 자동 재시도합니다... ({attempt}/{MAX_RETRIES}회차)
+                        f"""<div style='font-size:1.05rem; color:#444; font-weight:600; padding:0.4rem 0; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;'>
+                        <span>✏️ 교정 중입니다... (Processing...)</span>
+                        <span style='background:rgba(255,243,205,0.95); color:#856404; padding:0.2rem 0.8rem; border-radius:0.5rem; border:1px solid rgba(220,190,80,0.6); font-size:0.88rem; font-weight:500; white-space:nowrap;'>
+                        ⏳ {remaining}초 후 자동 재시도 ({attempt}/{MAX_RETRIES}회차)
+                        </span>
                         </div>""",
                         unsafe_allow_html=True
                     )
@@ -958,7 +961,7 @@ def analyze_text(text, countdown_placeholder=None):
                 if is_quota:
                     st.session_state.input_error = "❌ 사용량 초과로 3회 재시도 후에도 실패했습니다. 잠시 후 다시 [교정하기]를 눌러주세요."
                 else:
-                    st.session_state.input_error = f"❌ 3당재시도 후에도 오류가 발생했습니다: {full_error}"
+                    st.session_state.input_error = f"❌ 3번 재시도 후에도 오류가 발생했습니다: {full_error}"
                 return None
     _cd.empty()
     return None
