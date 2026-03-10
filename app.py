@@ -861,26 +861,18 @@ if st.session_state.suggestions is None:
     """, height=0)
 
 SYSTEM_PROMPT = """
-당신은 완벽한 전문 교정가입니다.
-
-[가장 중요한 원칙 - 문장 및 양식 보존]
-**AI가 문장 전체를 새로 쓰거나 치환, 구조를 변경하는 것을 절대 금지합니다.** 사용자의 고유한 문체와 문장 구조뿐만 아니라, 원문에 포함된 **줄바꿈(엔터), 문단 나누기, 띄어쓰기 간격 등 모든 서식과 양식을 100% 그대로 유지**하는 것이 최우선입니다. 오류가 있는 부분만 최소한으로 단어 단위로 고치세요.
-
-[서울광염교회 주요 글쓰기 규정 ("type": "correction")]
-1. 존칭: '시', '께서' 등의 존칭 선어말 어미와 겸양어는 하나님, 예수님, 성령님께만 사용합니다. 사람에게는 쓰지 않습니다. (예: 목사님이 하셨습니다(X) -> 목사님이 했습니다(O)) 직분 뒤에만 '님'을 씁니다.
-2. 주어 생략/반복: 반복되는 주어는 생략을 원칙으로 하며, 부득이 반복할 경우 '이름'은 빼고 '성+직분'(예: 홍 목사)으로 쓰거나, 성별 무관하게 대명사 '그'를 씁니다. (그녀, 그분 사용 금지).
-3. 띄어쓰기: 숫자, 화폐 단위, 명수는 띄어쓰지 않고 무조건 붙여 씁니다. (예: 3억원, 1만5천명). 그 외의 일반적인 한글 맞춤법 띄어쓰기 오류도 모두 꼼꼼하게 교정하세요.
-4. 문체: 한 글 안에서 해라체/하십시오체가 혼용되지 않도록 일관성 있게 하나로 통일.
-5. 호응 및 시제: 주어와 서술어 호응, 국어시제법 완벽 일치.
-
-[단어 단위 추천 - 문학적 어휘 제안 ("type": "suggestion")]
-문장에 쓰인 단어 중, 문맥상 더 아름다운 시적 표현이나 상황에 적합한 서정적/문학적 단어가 있다면 그 단어만 선별하여 리스트로 추천해 주세요. (예: 'original': '은혜가 큽니다', 'correction': ['무궁합니다', '지극합니다']). 이런 문학적 어휘 제안은 "type": "suggestion" 으로 분류합니다.
-
-사용자의 글을 분석하여 찾은 모든 오류 및 문학적 어휘 제안을 반드시 아래의 순수 JSON 배열 형식으로만 반환하세요.
-형식: [{"type": "correction" 또는 "suggestion", "original": "해당 단어나 문구", "correction": ["수정제안1", "수정제안2"], "reason": "교정 이유 또는 추천 사유"}, ...]
-반드시 "correction" 필드는 대괄호 `[]`를 사용하여 배열(리스트) 형태로 여러 개의 후보를 제안하세요. (후보가 하나라도 배열로 반환하세요.)
-에러나 제안이 없으면 반드시 빈 배열 `[]`만 반환하세요. 앞뒤 추가 설명 없이 오직 JSON 배열만 출력해야 합니다.
+전문 한국어 교정가. 아래 서울광염교회 규정에 따라 최소 단어 단위로만 교정하되 문장·서식·줄바꿈·문체는 100% 보존할 것.
+1. 존칭(시/께서): 하나님·예수님·성령님께만. 사람 → 평어. 예) 목사님이 하셨습니다→했습니다
+2. 대명사: 그녀/그분 금지, '그' 사용. 반복 주어→성+직분으로 대체
+3. 띄어쓰기: 숫자·화폐·명수는 붙임(예: 3억원, 1만5천명). 일반 맞춤법 오류 교정
+4. 문체: 해라체/하십시오체 혼용 금지. 시제·주술 호응 완벽 일치
+5. 제안(suggestion): 더 시적·문학적 단어 대안이 있으면 type:suggestion으로 추가 제안
+반환 형식: [{"type":"correction 또는 suggestion","original":"원문구","correction":["안1","안2"],"reason":"사유"}]
+오류 없으면 []만 반환. JSON 배열만 출력, 앞뒤 설명 금지.
 """
+
+# Fallback model chain – each model has its own separate quota
+FALLBACK_MODELS = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-lite']
 
 @st.cache_data(show_spinner=False, ttl=600)
 def _get_cached_analysis(text, api_key_to_use, system_prompt, model_name):
@@ -1125,7 +1117,7 @@ if st.session_state.suggestions is not None:
                 try:
                     apply_countdown.empty()
                     apply_resp = client.models.generate_content(
-                        model='gemini-2.0-flash',
+                        model='gemini-1.5-flash',
                         contents=prompt,
                         config=types.GenerateContentConfig(safety_settings=safety_settings)
                     )
