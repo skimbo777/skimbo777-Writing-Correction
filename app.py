@@ -1,6 +1,7 @@
 import streamlit as st
 import asyncio
 import json
+import time
 import extra_streamlit_components as stx
 import html
 from google import genai
@@ -895,46 +896,63 @@ def analyze_text(text):
         st.error("❌ 유효한 Gemini API 키가 없습니다. 우측 상단에 올바른 키를 입력해주세요.")
         return None
 
-    try:
-        client = genai.Client(api_key=api_key_to_use)
-        
-        safety_settings = [
-            types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
-            types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_NONE),
-            types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
-            types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
-        ]
-        
-        prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(safety_settings=safety_settings)
-        )
-        content = response.text.strip()
-        
-        start_idx = content.find('[')
-        end_idx = content.rfind(']')
-        
-        if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
-            json_str = content[start_idx:end_idx+1]
-            return json.loads(json_str)
-        else:
-            raise ValueError("Invalid JSON format from Gemini.")
-    except Exception as e:
-        error_msg = str(e).lower()
-        full_error = str(e)
-        if "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg:
-            st.session_state.input_error = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요."
-        elif "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg or "api_key_invalid" in error_msg or "unauthorized" in error_msg:
-            st.session_state.input_error = "❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요."
-        elif "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg:
-            st.session_state.input_error = "❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요."
-        elif "json format" in error_msg:
-            st.session_state.input_error = "❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요."
-        else:
-            st.session_state.input_error = f"❌ 오류가 발생했습니다: {full_error}"
-        return None
+    MAX_RETRIES = 3
+    RETRY_DELAY = 5  # seconds
+
+    client = genai.Client(api_key=api_key_to_use)
+    safety_settings = [
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+    ]
+    prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.models.generate_content(
+                model='gemini-2.0-flash',
+                contents=prompt,
+                config=types.GenerateContentConfig(safety_settings=safety_settings)
+            )
+            content = response.text.strip()
+            start_idx = content.find('[')
+            end_idx = content.rfind(']')
+            if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
+                return json.loads(content[start_idx:end_idx+1])
+            else:
+                raise ValueError("Invalid JSON format from Gemini.")
+        except Exception as e:
+            error_msg = str(e).lower()
+            full_error = str(e)
+            is_quota = "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg
+            is_api_key = "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg or "api_key_invalid" in error_msg or "unauthorized" in error_msg
+            is_safety = "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg
+            is_json = "invalid json format" in error_msg
+
+            # Don't retry on non-transient errors
+            if is_api_key or is_safety or is_json:
+                if is_api_key:
+                    st.session_state.input_error = "❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요."
+                elif is_safety:
+                    st.session_state.input_error = "❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요."
+                else:
+                    st.session_state.input_error = "❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요."
+                return None
+
+            # Retry on quota/transient errors
+            if attempt < MAX_RETRIES:
+                retry_msg = f"⏳ 사용량 초과 또는 일시적 오류. {RETRY_DELAY}을 기다리고 재시도 중... ({attempt}/{MAX_RETRIES})"
+                st.session_state.input_error = retry_msg
+                time.sleep(RETRY_DELAY)
+            else:
+                # All retries exhausted
+                if is_quota:
+                    st.session_state.input_error = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요."
+                else:
+                    st.session_state.input_error = f"❌ 3번 재시도 후에도 오류가 발생했습니다: {full_error}"
+                return None
+    return None
 
 
 if st.session_state.do_analyze:
@@ -1046,28 +1064,42 @@ if st.session_state.suggestions is not None:
                     pass
             
             client = genai.Client(api_key=api_key_to_use)
-            
             prompt = f"{APPLY_PROMPT}\n\n{user_content}"
-            
             safety_settings = [
                 types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
                 types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_NONE),
                 types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
                 types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
             ]
-            
-            apply_resp = client.models.generate_content(
-                model='gemini-2.0-flash',
-                contents=prompt,
-                config=types.GenerateContentConfig(safety_settings=safety_settings)
-            )
+
+            MAX_RETRIES = 3
+            RETRY_DELAY = 5
+            apply_resp = None
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    apply_resp = client.models.generate_content(
+                        model='gemini-2.0-flash',
+                        contents=prompt,
+                        config=types.GenerateContentConfig(safety_settings=safety_settings)
+                    )
+                    break  # success
+                except Exception as inner_e:
+                    inner_msg = str(inner_e).lower()
+                    is_transient = "429" in inner_msg or "exhaust" in inner_msg or "quota" in inner_msg or "too many" in inner_msg
+                    if is_transient and attempt < MAX_RETRIES:
+                        st.toast(f"⏳ 일시적 오류. {RETRY_DELAY}의 후 재시도... ({attempt}/{MAX_RETRIES})")
+                        time.sleep(RETRY_DELAY)
+                    else:
+                        raise  # re-raise for outer except
+
+            if apply_resp is None:
+                raise RuntimeError("재시도 후에도 응답없음")
+
             st.session_state.main_text_input = apply_resp.text.strip()
             st.session_state.suggestions = None
             st.session_state.original_text = ""
             st.session_state.final_text = ""
             st.session_state.show_success = True
-            
-            # Rerun to show updated text in the main box
             st.rerun()
             
         except Exception as e:
