@@ -893,7 +893,7 @@ SYSTEM_PROMPT = """
 """
 
 @st.cache_data(show_spinner=False, ttl=600)
-def _get_cached_analysis(text, api_key_to_use, system_prompt):
+def _get_cached_analysis(text, api_key_to_use, system_prompt, model_name):
     client = genai.Client(api_key=api_key_to_use)
     safety_settings = [
         types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
@@ -903,11 +903,14 @@ def _get_cached_analysis(text, api_key_to_use, system_prompt):
     ]
     prompt = f"{system_prompt}\n\n[사용자 입력 글]\n{text}"
     response = client.models.generate_content(
-        model='gemini-2.0-flash',
+        model=model_name,
         contents=prompt,
         config=types.GenerateContentConfig(safety_settings=safety_settings)
     )
     return response.text.strip()
+
+# Fallback model chain – each model has its own separate quota
+FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']
 
 def analyze_text(text, countdown_placeholder=None):
     if not st.session_state.get("authenticated", False):
@@ -925,78 +928,86 @@ def analyze_text(text, countdown_placeholder=None):
         st.error("❌ 유효한 Gemini API 키가 없습니다. 우측 상단에 올바른 키를 입력해주세요.")
         return None
 
-    MAX_RETRIES = 5
+    MAX_RETRIES = 3
 
     _cd = countdown_placeholder if countdown_placeholder is not None else st.empty()
 
     for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            with _cd.container():
-                col1, col2 = st.columns([2, 8])
-                with col1:
-                    if st.button("중지", type="primary", key=f"stop_analyze_{attempt}"):
-                        st.session_state.do_analyze = False
-                        st.session_state.input_error = None
-                        st.rerun()
-                with col2:
-                    st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
-            
-            # Using cached helper to avoid redundant API hits for same input
-            content = _get_cached_analysis(text, api_key_to_use, SYSTEM_PROMPT)
-            
-            start_idx = content.find('[')
-            end_idx = content.rfind(']')
-            if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
-                return json.loads(content[start_idx:end_idx+1])
-            else:
-                raise ValueError("Invalid JSON format from Gemini.")
-        except Exception as e:
-            error_msg = str(e).lower()
-            full_error = str(e)
-            is_quota = "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg or "resource_exhausted" in error_msg
-            is_api_key = "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg or "api_key_invalid" in error_msg or "unauthorized" in error_msg
-            is_safety = "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg
-            is_json = "invalid json format" in error_msg
-
-            # Don't retry on non-transient errors
-            if is_api_key or is_safety or is_json:
-                _cd.empty()
-                if is_api_key:
-                    st.session_state.input_error = "❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요."
-                elif is_safety:
-                    st.session_state.input_error = "❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요."
+        # Try each model in the fallback chain before waiting
+        for model_idx, model_name in enumerate(FALLBACK_MODELS):
+            try:
+                with _cd.container():
+                    col1, col2 = st.columns([2, 8])
+                    with col1:
+                        if st.button("중지", type="primary", key=f"stop_analyze_{attempt}_{model_idx}"):
+                            st.session_state.do_analyze = False
+                            st.session_state.input_error = None
+                            st.rerun()
+                    with col2:
+                        model_label = model_name.split('-')[-1]
+                        st.markdown(f"<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... ({model_name}) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
+                
+                content = _get_cached_analysis(text, api_key_to_use, SYSTEM_PROMPT, model_name)
+                
+                start_idx = content.find('[')
+                end_idx = content.rfind(']')
+                if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
+                    return json.loads(content[start_idx:end_idx+1])
                 else:
-                    st.session_state.input_error = "❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요."
-                return None
+                    raise ValueError("Invalid JSON format from Gemini.")
+            except Exception as e:
+                error_msg = str(e).lower()
+                full_error = str(e)
+                is_quota = "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg or "resource_exhausted" in error_msg
+                is_api_key = "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg or "api_key_invalid" in error_msg or "unauthorized" in error_msg
+                is_safety = "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg
+                is_json = "invalid json format" in error_msg
 
-            if attempt < MAX_RETRIES:
-                wait_secs = 30 if is_quota else 10
-                for remaining in range(wait_secs, 0, -1):
-                    with _cd.container():
-                        col1, col2 = st.columns([2, 8])
-                        with col1:
-                            if st.button("중지", type="primary", key=f"stop_retry_{attempt}_{remaining}"):
-                                st.session_state.do_analyze = False
-                                st.session_state.input_error = None
-                                st.rerun()
-                        with col2:
-                            st.markdown(
-                                f"""<div style='font-size:1.05rem; color:#444; font-weight:600; padding:0.4rem 0; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;'>
-                                <span>✏️ API 사용량 한계로 대기 중입니다...</span>
-                                <span style='background:rgba(255,243,205,0.95); color:#856404; padding:0.2rem 0.8rem; border-radius:0.5rem; border:1px solid rgba(220,190,80,0.6); font-size:0.88rem; font-weight:500; white-space:nowrap;'>
-                                ⏳ {remaining}초 후 자동 재시도 ({attempt}/{MAX_RETRIES}회차)
-                                </span>
-                                </div>""",
-                                unsafe_allow_html=True
-                            )
-                    time.sleep(1)
-            else:
-                _cd.empty()
+                if is_api_key or is_safety or is_json:
+                    _cd.empty()
+                    if is_api_key:
+                        st.session_state.input_error = "❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요."
+                    elif is_safety:
+                        st.session_state.input_error = "❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요."
+                    else:
+                        st.session_state.input_error = "❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요."
+                    return None
+
                 if is_quota:
-                    st.session_state.input_error = "❌ 구글 API(무료 티어) 사용량 초과로 5회 재시도 후에도 실패했습니다. 1분 뒤에 다시 시도해 주세요."
+                    # Quota hit for this model - try next fallback
+                    continue
                 else:
-                    st.session_state.input_error = f"❌ 5번 재시도 후에도 오류가 발생했습니다: {full_error}"
-                return None
+                    # Non-quota transient error - break to wait and retry
+                    break
+        else:
+            # All models exhausted for this attempt - wait before next round
+            pass
+
+        if attempt < MAX_RETRIES:
+            wait_secs = 30
+            for remaining in range(wait_secs, 0, -1):
+                with _cd.container():
+                    col1, col2 = st.columns([2, 8])
+                    with col1:
+                        if st.button("중지", type="primary", key=f"stop_retry_{attempt}_{remaining}"):
+                            st.session_state.do_analyze = False
+                            st.session_state.input_error = None
+                            st.rerun()
+                    with col2:
+                        st.markdown(
+                            f"""<div style='font-size:1.05rem; color:#444; font-weight:600; padding:0.4rem 0; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;'>
+                            <span>✏️ 모든 모델 Quota 초과 – 대기 중...</span>
+                            <span style='background:rgba(255,243,205,0.95); color:#856404; padding:0.2rem 0.8rem; border-radius:0.5rem; border:1px solid rgba(220,190,80,0.6); font-size:0.88rem; font-weight:500; white-space:nowrap;'>
+                            ⏳ {remaining}초 후 자동 재시도 ({attempt}/{MAX_RETRIES}회차)
+                            </span>
+                            </div>""",
+                            unsafe_allow_html=True
+                        )
+                time.sleep(1)
+        else:
+            _cd.empty()
+            st.session_state.input_error = "❌ 모든 AI 모델의 사용량 한계에 도달했습니다. 1분 후에 다시 [교정하기]를 눌러주세요."
+            return None
     _cd.empty()
     return None
 
