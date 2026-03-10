@@ -952,7 +952,7 @@ def analyze_text(text, countdown_placeholder=None):
         except Exception as e:
             error_msg = str(e).lower()
             full_error = str(e)
-            is_quota = "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg
+            is_quota = "429" in error_msg or "exhaust" in error_msg or "quota" in error_msg or "too many" in error_msg or "resource_exhausted" in error_msg
             is_api_key = "api_key" in error_msg or "api key" in error_msg or "permission" in error_msg or "invalid argument" in error_msg or "api_key_invalid" in error_msg or "unauthorized" in error_msg
             is_safety = "safety" in error_msg or "blocked" in error_msg or "candidate" in error_msg
             is_json = "invalid json format" in error_msg
@@ -981,7 +981,7 @@ def analyze_text(text, countdown_placeholder=None):
                         with col2:
                             st.markdown(
                                 f"""<div style='font-size:1.05rem; color:#444; font-weight:600; padding:0.4rem 0; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;'>
-                                <span>✏️ 교정 중입니다... (Processing...)</span>
+                                <span>✏️ API 사용량 한계로 대기 중입니다...</span>
                                 <span style='background:rgba(255,243,205,0.95); color:#856404; padding:0.2rem 0.8rem; border-radius:0.5rem; border:1px solid rgba(220,190,80,0.6); font-size:0.88rem; font-weight:500; white-space:nowrap;'>
                                 ⏳ {remaining}초 후 자동 재시도 ({attempt}/{MAX_RETRIES}회차)
                                 </span>
