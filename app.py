@@ -804,14 +804,17 @@ if st.session_state.suggestions is None:
         st.toast("교정이 완료되었습니다!", icon="🎉")
         st.session_state.show_success = False
         
-    if st.session_state.input_error:
-        st.markdown(f'<div class="custom-desc" style="text-align: center; padding: 0.6rem; border-radius: 0.5rem; background-color: rgba(255, 243, 205, 0.6); color: #856404; margin-bottom: 1rem; border: 1px solid rgba(255, 243, 205, 1); font-size: 0.85rem; max-width: 50%; margin-left: auto; margin-right: auto;">{st.session_state.input_error}</div>', unsafe_allow_html=True)
-        
-    if not st.session_state.do_analyze:
-        with loading_placeholder_top.container():
-            col_btn, _ = st.columns([2, 8])
-            with col_btn:
+    with loading_placeholder_top.container():
+        col_btn, col_msg = st.columns([2, 8])
+        with col_btn:
+            if not st.session_state.do_analyze:
                 st.button("교정하기", type="primary", on_click=trigger_analysis, use_container_width=True)
+            else:
+                # During analysis, analyze_text will populate this container via loading_placeholder_top
+                pass
+        with col_msg:
+            if st.session_state.input_error:
+                st.markdown(f'<div style="background-color: rgba(255, 243, 205, 0.6); color: #856404; padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(255, 243, 205, 1); font-size: 0.85rem; display: flex; align-items: center; min-height: 42px;">{st.session_state.input_error}</div>', unsafe_allow_html=True)
         
     user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
 
@@ -987,7 +990,14 @@ if st.session_state.do_analyze:
             with col2:
                 st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
                 
-        st.session_state.original_text = user_text_val
+        # Create a single row for both the button/loading and retry messages
+        col_btn, col_msg = st.columns([2, 8])
+        with col_btn:
+             # This space is usually occupied by the "Analyze" button, but during analysis, 
+             # the loading_placeholder_top will show the "Stop" button and "Processing" message.
+             # We use the same placeholder for both to keep them on the same line.
+             pass
+        
         suggestions = analyze_text(user_text_val, countdown_placeholder=loading_placeholder_top)
         loading_placeholder_top.empty()
         
