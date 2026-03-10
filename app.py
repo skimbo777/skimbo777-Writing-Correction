@@ -897,7 +897,6 @@ def analyze_text(text):
         return None
 
     MAX_RETRIES = 3
-    RETRY_DELAY = 5  # seconds
 
     client = genai.Client(api_key=api_key_to_use)
     safety_settings = [
@@ -908,8 +907,11 @@ def analyze_text(text):
     ]
     prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
 
+    countdown_placeholder = st.empty()
+
     for attempt in range(1, MAX_RETRIES + 1):
         try:
+            countdown_placeholder.empty()
             response = client.models.generate_content(
                 model='gemini-2.0-flash',
                 contents=prompt,
@@ -932,6 +934,7 @@ def analyze_text(text):
 
             # Don't retry on non-transient errors
             if is_api_key or is_safety or is_json:
+                countdown_placeholder.empty()
                 if is_api_key:
                     st.session_state.input_error = "❌ API 키가 유효하지 않습니다. 우측 상단에 올바른 API 키를 입력했는지 확인해주세요."
                 elif is_safety:
@@ -940,18 +943,24 @@ def analyze_text(text):
                     st.session_state.input_error = "❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요."
                 return None
 
-            # Retry on quota/transient errors
             if attempt < MAX_RETRIES:
-                retry_msg = f"⏳ 사용량 초과 또는 일시적 오류. {RETRY_DELAY}을 기다리고 재시도 중... ({attempt}/{MAX_RETRIES})"
-                st.session_state.input_error = retry_msg
-                time.sleep(RETRY_DELAY)
+                wait_secs = 30 if is_quota else 10
+                for remaining in range(wait_secs, 0, -1):
+                    countdown_placeholder.markdown(
+                        f"""<div style='text-align:center; padding:0.6rem; border-radius:0.5rem; background:rgba(255,243,205,0.7); color:#856404; border:1px solid rgba(255,238,170,1); font-size:0.9rem; margin-bottom:0.5rem;'>
+                        ⏳ 사용량 초과 감지. <b>{remaining}의</b> 후 자동 재시도합니다... ({attempt}/{MAX_RETRIES}회차)
+                        </div>""",
+                        unsafe_allow_html=True
+                    )
+                    time.sleep(1)
             else:
-                # All retries exhausted
+                countdown_placeholder.empty()
                 if is_quota:
-                    st.session_state.input_error = "❌ 사용량이 많아 잠시 숨을 고르고 있습니다. 30초 뒤에 다시 [교정하기]를 눌러주세요."
+                    st.session_state.input_error = "❌ 사용량 초과로 3회 재시도 후에도 실패했습니다. 잠시 후 다시 [교정하기]를 눌러주세요."
                 else:
-                    st.session_state.input_error = f"❌ 3번 재시도 후에도 오류가 발생했습니다: {full_error}"
+                    st.session_state.input_error = f"❌ 3당재시도 후에도 오류가 발생했습니다: {full_error}"
                 return None
+    countdown_placeholder.empty()
     return None
 
 
@@ -1073,10 +1082,11 @@ if st.session_state.suggestions is not None:
             ]
 
             MAX_RETRIES = 3
-            RETRY_DELAY = 5
             apply_resp = None
+            apply_countdown = st.empty()
             for attempt in range(1, MAX_RETRIES + 1):
                 try:
+                    apply_countdown.empty()
                     apply_resp = client.models.generate_content(
                         model='gemini-2.0-flash',
                         contents=prompt,
@@ -1087,10 +1097,19 @@ if st.session_state.suggestions is not None:
                     inner_msg = str(inner_e).lower()
                     is_transient = "429" in inner_msg or "exhaust" in inner_msg or "quota" in inner_msg or "too many" in inner_msg
                     if is_transient and attempt < MAX_RETRIES:
-                        st.toast(f"⏳ 일시적 오류. {RETRY_DELAY}의 후 재시도... ({attempt}/{MAX_RETRIES})")
-                        time.sleep(RETRY_DELAY)
+                        wait_secs = 30 if is_transient else 10
+                        for remaining in range(wait_secs, 0, -1):
+                            apply_countdown.markdown(
+                                f"""<div style='text-align:center; padding:0.6rem; border-radius:0.5rem; background:rgba(255,243,205,0.7); color:#856404; border:1px solid rgba(255,238,170,1); font-size:0.9rem; margin-bottom:0.5rem;'>
+                                ⏳ 사용량 초과 감지. <b>{remaining}의</b> 후 자동 재시도합니다... ({attempt}/{MAX_RETRIES}회차)
+                                </div>""",
+                                unsafe_allow_html=True
+                            )
+                            time.sleep(1)
                     else:
+                        apply_countdown.empty()
                         raise  # re-raise for outer except
+            apply_countdown.empty()
 
             if apply_resp is None:
                 raise RuntimeError("재시도 후에도 응답없음")
