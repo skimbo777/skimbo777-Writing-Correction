@@ -796,6 +796,10 @@ def trigger_analysis():
     st.session_state.do_analyze = True
     st.session_state.input_error = None
 
+def clear_input():
+    st.session_state.main_text_input = ""
+    st.session_state.input_error = None
+
 loading_placeholder_top = st.empty()
 
 if st.session_state.suggestions is None:
@@ -821,10 +825,7 @@ if st.session_state.suggestions is None:
     # Clear Input Button
     c1, c2, _ = st.columns([2, 2, 6])
     with c1:
-        if st.button("입력창 초기화", use_container_width=True):
-            st.session_state.main_text_input = ""
-            st.session_state.input_error = None
-            st.rerun()
+        st.button("입력창 초기화", use_container_width=True, on_click=clear_input)
 
     # Shortcut script for Cmd/Ctrl + Enter
     st.components.v1.html("""
