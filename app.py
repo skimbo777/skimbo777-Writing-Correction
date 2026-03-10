@@ -929,11 +929,13 @@ def analyze_text(text, countdown_placeholder=None):
         return None
 
     MAX_RETRIES = 3
-
     _cd = countdown_placeholder if countdown_placeholder is not None else st.empty()
 
     for attempt in range(1, MAX_RETRIES + 1):
-        # Try each model in the fallback chain before waiting
+        all_quota_failed = True  # assume True, set False if any non-quota success/failure
+        fatal_error = False
+
+        # Try each model in the fallback chain
         for model_idx, model_name in enumerate(FALLBACK_MODELS):
             try:
                 with _cd.container():
@@ -944,17 +946,18 @@ def analyze_text(text, countdown_placeholder=None):
                             st.session_state.input_error = None
                             st.rerun()
                     with col2:
-                        model_label = model_name.split('-')[-1]
                         st.markdown(f"<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... ({model_name}) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
-                
+
                 content = _get_cached_analysis(text, api_key_to_use, SYSTEM_PROMPT, model_name)
-                
+
                 start_idx = content.find('[')
                 end_idx = content.rfind(']')
                 if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
+                    _cd.empty()
                     return json.loads(content[start_idx:end_idx+1])
                 else:
                     raise ValueError("Invalid JSON format from Gemini.")
+
             except Exception as e:
                 error_msg = str(e).lower()
                 full_error = str(e)
@@ -971,20 +974,21 @@ def analyze_text(text, countdown_placeholder=None):
                         st.session_state.input_error = "❌ 구글 안전 정책에 의해 답변 생성이 차단되었습니다. 입력하신 내용을 확인해주세요."
                     else:
                         st.session_state.input_error = "❌ AI가 올바른 형식으로 답변하지 못했습니다. 다시 시도해 주세요."
-                    return None
-
-                if is_quota:
-                    # Quota hit for this model - try next fallback
-                    continue
-                else:
-                    # Non-quota transient error - break to wait and retry
+                    fatal_error = True
                     break
-        else:
-            # All models exhausted for this attempt - wait before next round
-            pass
 
+                if not is_quota:
+                    # Non-quota transient error - don't try more models
+                    all_quota_failed = False
+                    break
+                # else: quota error, continue to next model
+
+        if fatal_error:
+            return None
+
+        # If we get here, all models either failed with quota or a transient error
         if attempt < MAX_RETRIES:
-            wait_secs = 30
+            wait_secs = 60  # Gemini free tier resets every ~60 seconds
             for remaining in range(wait_secs, 0, -1):
                 with _cd.container():
                     col1, col2 = st.columns([2, 8])
@@ -994,11 +998,12 @@ def analyze_text(text, countdown_placeholder=None):
                             st.session_state.input_error = None
                             st.rerun()
                     with col2:
+                        msg = "⏳ 구글 API 사용량 초과 – 잠시 후 자동 재시도" if all_quota_failed else "⏳ 오류 발생 – 잠시 후 자동 재시도"
                         st.markdown(
                             f"""<div style='font-size:1.05rem; color:#444; font-weight:600; padding:0.4rem 0; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;'>
-                            <span>✏️ 모든 모델 Quota 초과 – 대기 중...</span>
+                            <span>{msg}</span>
                             <span style='background:rgba(255,243,205,0.95); color:#856404; padding:0.2rem 0.8rem; border-radius:0.5rem; border:1px solid rgba(220,190,80,0.6); font-size:0.88rem; font-weight:500; white-space:nowrap;'>
-                            ⏳ {remaining}초 후 자동 재시도 ({attempt}/{MAX_RETRIES}회차)
+                            ⌛ {remaining}초 남음 ({attempt}/{MAX_RETRIES}회차)
                             </span>
                             </div>""",
                             unsafe_allow_html=True
@@ -1006,7 +1011,7 @@ def analyze_text(text, countdown_placeholder=None):
                 time.sleep(1)
         else:
             _cd.empty()
-            st.session_state.input_error = "❌ 모든 AI 모델의 사용량 한계에 도달했습니다. 1분 후에 다시 [교정하기]를 눌러주세요."
+            st.session_state.input_error = "❌ 구글 무료 API 사용량이 일시적으로 초과되었습니다. 잠시 후 다시 [교정하기]를 눌러주세요. (무료 티어: 분당 15회 제한)"
             return None
     _cd.empty()
     return None
