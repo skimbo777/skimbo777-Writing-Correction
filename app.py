@@ -816,7 +816,15 @@ if st.session_state.suggestions is None:
             if st.session_state.input_error:
                 st.markdown(f'<div style="background-color: rgba(255, 243, 205, 0.6); color: #856404; padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(255, 243, 205, 1); font-size: 0.85rem; display: flex; align-items: center; min-height: 42px;">{st.session_state.input_error}</div>', unsafe_allow_html=True)
         
-    user_text = st.text_area("main_input", height=500, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
+    user_text = st.text_area("main_input", height=450, placeholder="교정할 글을 입력해주세요... (단축키: Cmd/Ctrl + Enter 로 즉시 교정)", label_visibility="collapsed", key="main_text_input")
+
+    # Clear Input Button
+    c1, c2, _ = st.columns([2, 2, 6])
+    with c1:
+        if st.button("입력창 초기화", use_container_width=True):
+            st.session_state.main_text_input = ""
+            st.session_state.input_error = None
+            st.rerun()
 
     # Shortcut script for Cmd/Ctrl + Enter
     st.components.v1.html("""
@@ -883,6 +891,23 @@ SYSTEM_PROMPT = """
 에러나 제안이 없으면 반드시 빈 배열 `[]`만 반환하세요. 앞뒤 추가 설명 없이 오직 JSON 배열만 출력해야 합니다.
 """
 
+@st.cache_data(show_spinner=False, ttl=600)
+def _get_cached_analysis(text, api_key_to_use, system_prompt):
+    client = genai.Client(api_key=api_key_to_use)
+    safety_settings = [
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+    ]
+    prompt = f"{system_prompt}\n\n[사용자 입력 글]\n{text}"
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(safety_settings=safety_settings)
+    )
+    return response.text.strip()
+
 def analyze_text(text, countdown_placeholder=None):
     if not st.session_state.get("authenticated", False):
         st.warning("❌ 우측 상단에서 인증을 먼저 완료해주세요.")
@@ -899,16 +924,7 @@ def analyze_text(text, countdown_placeholder=None):
         st.error("❌ 유효한 Gemini API 키가 없습니다. 우측 상단에 올바른 키를 입력해주세요.")
         return None
 
-    MAX_RETRIES = 3
-
-    client = genai.Client(api_key=api_key_to_use)
-    safety_settings = [
-        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
-        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_NONE),
-        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
-        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
-    ]
-    prompt = f"{SYSTEM_PROMPT}\n\n[사용자 입력 글]\n{text}"
+    MAX_RETRIES = 5
 
     _cd = countdown_placeholder if countdown_placeholder is not None else st.empty()
 
@@ -924,12 +940,9 @@ def analyze_text(text, countdown_placeholder=None):
                 with col2:
                     st.markdown("<div style='font-size:1.05rem; color:#444; margin-top: 5px; font-weight:600;'>교정 중입니다... (Processing...) <span class='pencil-anim'></span></div>", unsafe_allow_html=True)
             
-            response = client.models.generate_content(
-                model='gemini-2.0-flash',
-                contents=prompt,
-                config=types.GenerateContentConfig(safety_settings=safety_settings)
-            )
-            content = response.text.strip()
+            # Using cached helper to avoid redundant API hits for same input
+            content = _get_cached_analysis(text, api_key_to_use, SYSTEM_PROMPT)
+            
             start_idx = content.find('[')
             end_idx = content.rfind(']')
             if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
@@ -979,9 +992,9 @@ def analyze_text(text, countdown_placeholder=None):
             else:
                 _cd.empty()
                 if is_quota:
-                    st.session_state.input_error = "❌ 사용량 초과로 3회 재시도 후에도 실패했습니다. 잠시 후 다시 [교정하기]를 눌러주세요."
+                    st.session_state.input_error = "❌ 구글 API(무료 티어) 사용량 초과로 5회 재시도 후에도 실패했습니다. 1분 뒤에 다시 시도해 주세요."
                 else:
-                    st.session_state.input_error = f"❌ 3번 재시도 후에도 오류가 발생했습니다: {full_error}"
+                    st.session_state.input_error = f"❌ 5번 재시도 후에도 오류가 발생했습니다: {full_error}"
                 return None
     _cd.empty()
     return None
@@ -1098,7 +1111,7 @@ if st.session_state.suggestions is not None:
                 types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
             ]
 
-            MAX_RETRIES = 3
+            MAX_RETRIES = 5
             apply_resp = None
             apply_countdown = st.empty()
             for attempt in range(1, MAX_RETRIES + 1):
